@@ -8,6 +8,8 @@
  * entry at a given severity, and diag_print() for formatted output.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
+#include <stdio.h>
+
 #include "diag/diag.h"
 
 int has_level(const diag_vector *diags, level lv)
@@ -25,9 +27,26 @@ char *diag_print(diag diag_)
 {
     char* buffer = NULL;
 
-    buffer = (char*)malloc(256);
+    buffer = (char*)malloc(512);
     if (!buffer)
         return NULL;
-
     
+    switch (diag_.level_) {
+    case LEVEL_NOTE:
+        snprintf(buffer, 512, "[NOTE][%d:%d] %s", diag_.line, diag_.column,
+                diag_.whaterr);
+        break;
+    case LEVEL_WARN:
+        snprintf(buffer, 512, "[WARN][%d:%d] %s", diag_.line, diag_.column,
+                diag_.whaterr);
+        break;
+    case LEVEL_ERROR:
+        snprintf(buffer, 512, "[ERROR][%d:%d] %s", diag_.line, diag_.column,
+                diag_.whaterr);
+        break;
+    default:
+        snprintf(buffer, 512, "[UNKNOWN][%d:%d] ???", diag_.line, diag_.column);
+    }
+
+    return buffer;
 }

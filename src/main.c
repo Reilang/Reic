@@ -34,14 +34,18 @@ int main(void)
     printf("tokens (%d):\n", tokens.size);
     for (i = 0; i < tokens.size; i++) {
         char *s = token_print(tokens.data[i]);
-        if (!s)
+        if (s)
             printf("  %s\n", s);
         free(s);
     }
 
     printf("\ndiagnostics (%d):\n", diags.size);
-    for (i = 0; i < diags.size; i++)
-        printf("  [%d:%d] %s\n", diags.data[i].line, diags.data[i].column, diags.data[i].whaterr);
+    for (i = 0; i < diags.size; i++) {
+        char *s = diag_print(diags.data[i]);
+        if (s)
+            printf("  %s\n", s);
+        free(s);
+    }
 
     token_free(&tokens);
     diag_free(&diags);
