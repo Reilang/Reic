@@ -1,0 +1,5 @@
+option('asan',
+  type: 'boolean',
+  value: false,
+  description: 'Enable AddressSanitizer and UBSan',
+)
