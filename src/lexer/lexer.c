@@ -43,6 +43,10 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 break;
 
             if (cur == '\n') {
+                tk.type = TK_NEXTLINE;
+                tk.line = lexer_->src_.line;
+                tk.column = lexer_->src_.column;
+                token_push(tokens, tk);
                 lexer_->src_.line++;
                 lexer_->src_.column = 0;
                 break;
@@ -58,13 +62,15 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
             }
 
             if (cur == '(' || cur == ')' || cur == '[' || cur == ']'
-                || cur == '{' || cur == '}' || cur == '+' || cur == '-' || cur == '*') {
+                || cur == '{' || cur == '}' || cur == '+' || cur == '-' || cur == '*'
+                || cur == '/') {
                 tk.line = sline;
                 tk.column = scol;
                 switch (cur) {
                 case '+': tk.type = TK_ADD;      break;
                 case '-': tk.type = TK_MINUS;    break;
                 case '*': tk.type = TK_STAR;     break;
+                case '/': tk.type = TK_SLASH;    break;
                 case '(': tk.type = TK_OPAREN;   break;
                 case ')': tk.type = TK_CPAREN;   break;
                 case '[': tk.type = TK_OBRACKET; break;
@@ -77,23 +83,8 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 break;
             }
 
-            if (cur == '/') {
-                cur = *(lexer_->src_.raw++);
-                lexer_->src_.column++;
-                if (cur == '/') {
-                    lexer_->state = LSTATE_LINECMT;
-                    break;
-                }
-                if (cur == '*') {
-                    lexer_->state = LSTATE_BLOCKCMT;
-                    break;
-                }
-                lexer_->src_.raw--;
-                lexer_->src_.column--;
-                tk.type = TK_SLASH;
-                tk.line = sline;
-                tk.column = scol;
-                token_push(tokens, tk);
+            if (cur == ';') {
+                lexer_->state = LSTATE_COMMENT;
                 break;
             }
 
@@ -187,27 +178,29 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                     lexer_->readnow[pos++] = cur;
                 break;
             }
-            if (pos > 0 && lexer_->readnow[pos - 1] == '.') {
-                if (cur == '.') {
-                    snprintf(dg.whaterr, sizeof(dg.whaterr),
-                             "duplicate dot in float literal");
-                    dg.line = sline;
-                    dg.column = scol;
-                    dg.level_ = LEVEL_ERROR;
-                    diag_push(diags, dg);
-                    lexer_->readnow[pos] = '\0';
-                    tk.type = TK_FLITER;
-                    tk.line = sline;
-                    tk.column = scol;
-                    tk.value.float_ = strtod(lexer_->readnow, NULL);
-                    token_push(tokens, tk);
-                    while (isdigit(*(lexer_->src_.raw))) {
-                        lexer_->src_.raw++;
-                        lexer_->src_.column++;
-                    }
-                    lexer_->state = LSTATE_NORMAL;
-                    break;
+            if (cur == '.' && memchr(lexer_->readnow, '.', (size_t)pos) != NULL) {
+                snprintf(dg.whaterr, sizeof(dg.whaterr),
+                         "duplicate dot in float literal");
+                dg.line = sline;
+                dg.column = scol;
+                dg.level_ = LEVEL_ERROR;
+                diag_push(diags, dg);
+                lexer_->readnow[pos] = '\0';
+                tk.type = TK_FLITER;
+                tk.line = sline;
+                tk.column = scol;
+                tk.value.float_ = strtod(lexer_->readnow, NULL);
+                token_push(tokens, tk);
+                while (*(lexer_->src_.raw) && *(lexer_->src_.raw) != ' '
+                       && *(lexer_->src_.raw) != '\t' && *(lexer_->src_.raw) != '\n'
+                       && *(lexer_->src_.raw) != '\r') {
+                    lexer_->src_.raw++;
+                    lexer_->src_.column++;
                 }
+                lexer_->state = LSTATE_NORMAL;
+                break;
+            }
+            if (pos > 0 && lexer_->readnow[pos - 1] == '.') {
                 snprintf(dg.whaterr, sizeof(dg.whaterr),
                          "unexpected character '%c' (0x%02X) in float literal",
                          cur, (unsigned char)cur);
@@ -215,14 +208,16 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 dg.column = scol;
                 dg.level_ = LEVEL_ERROR;
                 diag_push(diags, dg);
-                lexer_->src_.raw--;
-                lexer_->src_.column--;
                 lexer_->readnow[pos] = '\0';
                 tk.type = TK_FLITER;
                 tk.line = sline;
                 tk.column = scol;
                 tk.value.float_ = strtod(lexer_->readnow, NULL);
                 token_push(tokens, tk);
+                if (cur == '\n') {
+                    lexer_->src_.line++;
+                    lexer_->src_.column = 0;
+                }
                 lexer_->state = LSTATE_NORMAL;
                 break;
             }
@@ -354,7 +349,7 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
             lexer_->state = LSTATE_NORMAL;
             break;
 
-        case LSTATE_LINECMT:
+        case LSTATE_COMMENT:
             cur = *(lexer_->src_.raw++);
             lexer_->src_.column++;
             if (cur == '\0') {
@@ -366,49 +361,13 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 break;
             }
             if (cur == '\n') {
+                tk.type = TK_NEXTLINE;
+                tk.line = lexer_->src_.line;
+                tk.column = lexer_->src_.column;
+                token_push(tokens, tk);
                 lexer_->src_.line++;
                 lexer_->src_.column = 0;
                 lexer_->state = LSTATE_NORMAL;
-            }
-            break;
-
-        case LSTATE_BLOCKCMT:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
-            if (cur == '\0') {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "unterminated block comment");
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                lexer_->state = LSTATE_NORMAL;
-                break;
-            }
-            if (cur == '\n') {
-                lexer_->src_.line++;
-                lexer_->src_.column = 0;
-                break;
-            }
-            if (cur == '*') {
-                cur = *(lexer_->src_.raw++);
-                lexer_->src_.column++;
-                if (cur == '/') {
-                    lexer_->state = LSTATE_NORMAL;
-                    break;
-                }
-                if (cur == '\0') {
-                    snprintf(dg.whaterr, sizeof(dg.whaterr),
-                             "unterminated block comment");
-                    dg.line = sline;
-                    dg.column = scol;
-                    dg.level_ = LEVEL_ERROR;
-                    diag_push(diags, dg);
-                    lexer_->state = LSTATE_NORMAL;
-                    break;
-                }
-                lexer_->src_.raw--;
-                lexer_->src_.column--;
             }
             break;
 

@@ -26,12 +26,17 @@ typedef enum {
     TK_MINUS,
     TK_STAR,
     TK_SLASH,
+    TK_EQUAL,
     TK_OPAREN,
     TK_CPAREN,
     TK_OBRACKET,
     TK_CBRACKET,
     TK_OBRACE,
     TK_CBRACE,
+    TK_OABRACKET,
+    TK_CABRACKET,
+    TK_COLON,
+    TK_NEXTLINE,
     TK_EOF
 } tktype;
 

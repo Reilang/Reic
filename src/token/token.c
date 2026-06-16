@@ -49,6 +49,9 @@ char *token_print(token token_)
     case TK_SLASH:
         snprintf(buffer, 256, "/");
         break;
+    case TK_EQUAL:
+        snprintf(buffer, 256, "=");
+        break;
     case TK_OPAREN:
         snprintf(buffer, 256, "(");
         break;
@@ -66,6 +69,18 @@ char *token_print(token token_)
         break;
     case TK_CBRACE:
         snprintf(buffer, 256, "}");
+        break;
+    case TK_OABRACKET:
+        snprintf(buffer, 256, "<");
+        break;
+    case TK_CABRACKET:
+        snprintf(buffer, 256, ">");
+        break;
+    case TK_COLON:
+        snprintf(buffer, 256, ":");
+        break;
+    case TK_NEXTLINE:
+        snprintf(buffer, 256, "<nextline>");
         break;
     case TK_EOF:
         snprintf(buffer, 256, "<eof>");

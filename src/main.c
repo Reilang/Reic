@@ -12,8 +12,9 @@
 
 int main(void)
 {
-    char src_raw[] = "()[]{}+-*/ // line comment\n"
-                     "/* block comment */ ident\n"
+    char src_raw[] = "()[]{}+-*/ ; line comment\n"
+                     "; block comment\n"
+                     "ident\n"
                      "_foo bar123\n"
                      "42 3.14.1.1 0.5\n"
                      "\"hello\\nworld\" 'x' '\\t'\n";
