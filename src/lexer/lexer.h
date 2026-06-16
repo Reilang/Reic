@@ -16,6 +16,19 @@
 #include "token/token.h"
 #include "diag/diag.h"
 
+typedef enum {
+    LSTATE_NORMAL,
+    LSTATE_IDENT,
+    LSTATE_ILITER,
+    LSTATE_FLITER,
+    LSTATE_SLITER,
+    LSTATE_CLITER,
+    LSTATE_LINECMT,
+    LSTATE_BLOCKCMT,
+    LSTATE_ERROR,
+    LSTATE_END
+} lstate;
+
 typedef struct {
     char *raw;
     int line;
@@ -23,6 +36,7 @@ typedef struct {
 } src;
 
 typedef struct {
+    lstate state;
     char readnow[256];
     src src_;
 } lexer;

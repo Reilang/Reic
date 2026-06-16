@@ -15,7 +15,7 @@
 
 char *token_print(token token_)
 {
-    char *buffer;
+    char *buffer = NULL;
 
     buffer = (char*)malloc(256);
     if (!buffer)

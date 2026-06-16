@@ -12,7 +12,7 @@
 
 int has_level(const diag_vector *diags, level lv)
 {
-    int i;
+    int i = 0;
     for (i = 0; i < diags->size; i++) {
         if (diags->data[i].level_ == lv)
             return 1;
