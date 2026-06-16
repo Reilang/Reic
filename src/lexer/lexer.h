@@ -13,8 +13,8 @@
 #ifndef LEXER_LEXER_H
 #define LEXER_LEXER_H
 
-#include "token/token.h"
 #include "diag/diag.h"
+#include "token/token.h"
 
 typedef enum {
     LSTATE_NORMAL,
