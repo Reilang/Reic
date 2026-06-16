@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+char KEYWORDS[64][64] = {"if", "for", "while"};
+
 void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
 {
     char cur = 0;
@@ -145,7 +147,18 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
             lexer_->src_.raw--;
             lexer_->src_.column--;
             lexer_->readnow[pos] = '\0';
-            tk.type = TK_IDENT;
+            {
+                int ki;
+                tk.type = TK_IDENT;
+                for (ki = 0; ki < 64; ki++) {
+                    if (KEYWORDS[ki][0] == '\0')
+                        continue;
+                    if (strcmp(lexer_->readnow, KEYWORDS[ki]) == 0) {
+                        tk.type = TK_KEYWORD;
+                        break;
+                    }
+                }
+            }
             tk.line = sline;
             tk.column = scol;
             tk.value.string = strdup(lexer_->readnow);

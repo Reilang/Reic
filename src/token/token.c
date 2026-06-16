@@ -26,6 +26,10 @@ char *token_print(token token_)
         snprintf(buffer, 256, "[%d:%d] identifier: %s", token_.line, token_.column,
                 token_.value.string);
         break;
+    case TK_KEYWORD:
+        snprintf(buffer, 256, "[%d:%d] keyword: %s", token_.line, token_.column,
+                token_.value.string);
+        break;
     case TK_ILITER:
         snprintf(buffer, 256, "[%d:%d] integer: %lld", token_.line, token_.column,
                 (long long)token_.value.integer);

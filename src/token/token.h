@@ -18,6 +18,7 @@
 
 typedef enum {
     TK_IDENT,
+    TK_KEYWORD,
     TK_ILITER,
     TK_FLITER,
     TK_SLITER,
