@@ -34,9 +34,8 @@ int main(void)
     printf("tokens (%d):\n", tokens.size);
     for (i = 0; i < tokens.size; i++) {
         char *s = token_print(tokens.data[i]);
-        printf("  [%d:%d] %s\n", tokens.data[i].line, tokens.data[i].column, s);
-        if (tokens.data[i].type == TK_IDENT || tokens.data[i].type == TK_SLITER)
-            free(tokens.data[i].value.string);
+        if (!s)
+            printf("  %s\n", s);
         free(s);
     }
 

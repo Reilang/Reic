@@ -23,70 +23,75 @@ char *token_print(token token_)
 
     switch (token_.type) {
     case TK_IDENT:
-        snprintf(buffer, 256, "identifier: %s", token_.value.string);
+        snprintf(buffer, 256, "[%d:%d] identifier: %s", token_.line, token_.column,
+                token_.value.string);
         break;
     case TK_ILITER:
-        snprintf(buffer, 256, "integer: %lld", (long long)token_.value.integer);
+        snprintf(buffer, 256, "[%d:%d] integer: %lld", token_.line, token_.column,
+                (long long)token_.value.integer);
         break;
     case TK_FLITER:
-        snprintf(buffer, 256, "float: %f", token_.value.float_);
+        snprintf(buffer, 256, "[%d:%d] float: %f", token_.line, token_.column,
+                token_.value.float_);
         break;
     case TK_SLITER:
-        snprintf(buffer, 256, "string: \"%s\"", token_.value.string);
+        snprintf(buffer, 256, "[%d:%d] string: \"%s\"", token_.line, token_.column,
+                token_.value.string);
         break;
     case TK_CLITER:
-        snprintf(buffer, 256, "char: '%c'", token_.value.char_);
+        snprintf(buffer, 256, "[%d:%d] char: '%c'", token_.line, token_.column,
+                token_.value.char_);
         break;
     case TK_ADD:
-        snprintf(buffer, 256, "+");
+        snprintf(buffer, 256, "[%d:%d] +", token_.line, token_.column);
         break;
     case TK_MINUS:
-        snprintf(buffer, 256, "-");
+        snprintf(buffer, 256, "[%d:%d] -", token_.line, token_.column);
         break;
     case TK_STAR:
-        snprintf(buffer, 256, "*");
+        snprintf(buffer, 256, "[%d:%d] *", token_.line, token_.column);
         break;
     case TK_SLASH:
-        snprintf(buffer, 256, "/");
+        snprintf(buffer, 256, "[%d:%d] /", token_.line, token_.column);
         break;
     case TK_EQUAL:
-        snprintf(buffer, 256, "=");
+        snprintf(buffer, 256, "[%d:%d] =", token_.line, token_.column);
         break;
     case TK_OPAREN:
-        snprintf(buffer, 256, "(");
+        snprintf(buffer, 256, "[%d:%d] (", token_.line, token_.column);
         break;
     case TK_CPAREN:
-        snprintf(buffer, 256, ")");
+        snprintf(buffer, 256, "[%d:%d] )", token_.line, token_.column);
         break;
     case TK_OBRACKET:
-        snprintf(buffer, 256, "[");
+        snprintf(buffer, 256, "[%d:%d] [", token_.line, token_.column);
         break;
     case TK_CBRACKET:
-        snprintf(buffer, 256, "]");
+        snprintf(buffer, 256, "[%d:%d] ]", token_.line, token_.column);
         break;
     case TK_OBRACE:
-        snprintf(buffer, 256, "{");
+        snprintf(buffer, 256, "[%d:%d] {", token_.line, token_.column);
         break;
     case TK_CBRACE:
-        snprintf(buffer, 256, "}");
+        snprintf(buffer, 256, "[%d:%d] }", token_.line, token_.column);
         break;
     case TK_OABRACKET:
-        snprintf(buffer, 256, "<");
+        snprintf(buffer, 256, "[%d:%d] <", token_.line, token_.column);
         break;
     case TK_CABRACKET:
-        snprintf(buffer, 256, ">");
+        snprintf(buffer, 256, "[%d:%d] >", token_.line, token_.column);
         break;
     case TK_COLON:
-        snprintf(buffer, 256, ":");
+        snprintf(buffer, 256, "[%d:%d] :", token_.line, token_.column);
         break;
     case TK_NEXTLINE:
-        snprintf(buffer, 256, "<nextline>");
+        snprintf(buffer, 256, "[%d:%d] <nextline>", token_.line, token_.column);
         break;
     case TK_EOF:
-        snprintf(buffer, 256, "<eof>");
+        snprintf(buffer, 256, "[%d:%d] <eof>", token_.line, token_.column);
         break;
     default:
-        snprintf(buffer, 256, "???");
+        snprintf(buffer, 256, "[%d:%d] ???", token_.line, token_.column);
     }
 
     return buffer;

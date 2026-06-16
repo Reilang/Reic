@@ -13,6 +13,7 @@
 int has_level(const diag_vector *diags, level lv)
 {
     int i = 0;
+
     for (i = 0; i < diags->size; i++) {
         if (diags->data[i].level_ == lv)
             return 1;
@@ -22,6 +23,11 @@ int has_level(const diag_vector *diags, level lv)
 
 char *diag_print(diag diag_)
 {
-    (void)diag_;
-    return NULL;
+    char* buffer = NULL;
+
+    buffer = (char*)malloc(256);
+    if (!buffer)
+        return NULL;
+
+    
 }
