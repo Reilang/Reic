@@ -39,6 +39,7 @@ typedef enum {
 
     ANODE_FUNCDECL,
     ANODE_VARDECL,
+    ANODE_TYPEDECL,
 
     ANODE_COUNT
 } anode_kind;

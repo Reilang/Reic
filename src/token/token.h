@@ -18,6 +18,9 @@
 
 typedef enum {
     TK_IDENT,
+    TK_IDENT_FUNC,
+    TK_IDENT_VAR,
+    TK_IDENT_TYPE,
     TK_KEYWORD,
 
     TK_ILITER,

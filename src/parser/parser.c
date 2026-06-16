@@ -11,8 +11,14 @@
  */
 #include "parser/parser.h"
 
+char BUILTIN_TYPES[64][64] = {"int32"};
+
 void parse(parser *parser_, node_vector *nodes, diag_vector *diags)
 {
+    token cur = {0};
+    anode and = {0};
+    diag dg = {0};
+
     (void)parser_;
     (void)nodes;
     (void)diags;

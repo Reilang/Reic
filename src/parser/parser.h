@@ -21,17 +21,20 @@ typedef enum {
     PSTATE_STMT,
     PSTATE_EXPR,
     PSTATE_BLOCK,
+
     PSTATE_IF,
     PSTATE_WHILE,
     PSTATE_FOR,
     PSTATE_RETURN,
+
+    PSTATE_ERROR
 } pstate;
 
 DECLARE_VECTOR(pstate, state)
 
 typedef struct {
     state_vector states;
-    token_vector *tokens;
+    token_vector tokens;
     int cursor;
 } parser;
 
