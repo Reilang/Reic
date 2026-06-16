@@ -38,6 +38,7 @@ typedef struct {
     lstate state;
     char readnow[256];
     src src_;
+    int paren_depth;
 } lexer;
 
 void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags);

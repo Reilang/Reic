@@ -28,6 +28,7 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
 
     lexer_->src_.line = 1;
     lexer_->src_.column = 0;
+    lexer_->paren_depth = 0;
     lexer_->state = LSTATE_NORMAL;
 
     while (lexer_->state != LSTATE_END) {
@@ -43,10 +44,12 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 break;
 
             if (cur == '\n') {
-                tk.type = TK_NEXTLINE;
-                tk.line = lexer_->src_.line;
-                tk.column = lexer_->src_.column;
-                token_push(tokens, tk);
+                if (lexer_->paren_depth == 0) {
+                    tk.type = TK_NEXTLINE;
+                    tk.line = lexer_->src_.line;
+                    tk.column = lexer_->src_.column;
+                    token_push(tokens, tk);
+                }
                 lexer_->src_.line++;
                 lexer_->src_.column = 0;
                 break;
@@ -71,8 +74,15 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 case '-': tk.type = TK_MINUS;    break;
                 case '*': tk.type = TK_STAR;     break;
                 case '/': tk.type = TK_SLASH;    break;
-                case '(': tk.type = TK_OPAREN;   break;
-                case ')': tk.type = TK_CPAREN;   break;
+                case '(':
+                    tk.type = TK_OPAREN;
+                    lexer_->paren_depth++;
+                    break;
+                case ')':
+                    tk.type = TK_CPAREN;
+                    if (lexer_->paren_depth > 0)
+                        lexer_->paren_depth--;
+                    break;
                 case '[': tk.type = TK_OBRACKET; break;
                 case ']': tk.type = TK_CBRACKET; break;
                 case '{': tk.type = TK_OBRACE;   break;
@@ -361,10 +371,12 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 break;
             }
             if (cur == '\n') {
-                tk.type = TK_NEXTLINE;
-                tk.line = lexer_->src_.line;
-                tk.column = lexer_->src_.column;
-                token_push(tokens, tk);
+                if (lexer_->paren_depth == 0) {
+                    tk.type = TK_NEXTLINE;
+                    tk.line = lexer_->src_.line;
+                    tk.column = lexer_->src_.column;
+                    token_push(tokens, tk);
+                }
                 lexer_->src_.line++;
                 lexer_->src_.column = 0;
                 lexer_->state = LSTATE_NORMAL;

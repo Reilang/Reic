@@ -17,7 +17,11 @@ int main(void)
                      "ident\n"
                      "_foo bar123\n"
                      "42 3.14.1.1 0.5\n"
-                     "\"hello\\nworld\" 'x' '\\t'\n";
+                     "\"hello\\nworld\" 'x' '\\t'\n"
+                     "(\n"
+                     "a b\n"
+                     ")\n"
+                     "outside\n";
     lexer lexer_;
     token_vector tokens;
     diag_vector diags;
