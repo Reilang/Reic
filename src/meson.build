@@ -3,6 +3,7 @@ srcs = files(
   'lexer/lexer.c',
   'token/token.c',
   'diag/diag.c',
+  'parser/parser.c',
 )
 
 executable('reilang',

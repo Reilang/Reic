@@ -19,15 +19,18 @@
 typedef enum {
     TK_IDENT,
     TK_KEYWORD,
+
     TK_ILITER,
     TK_FLITER,
     TK_SLITER,
     TK_CLITER,
+
     TK_ADD,
     TK_MINUS,
     TK_STAR,
     TK_SLASH,
     TK_EQUAL,
+
     TK_OPAREN,
     TK_CPAREN,
     TK_OBRACKET,
@@ -36,7 +39,9 @@ typedef enum {
     TK_CBRACE,
     TK_OABRACKET,
     TK_CABRACKET,
+
     TK_COLON,
+
     TK_NEXTLINE,
     TK_EOF
 } tktype;

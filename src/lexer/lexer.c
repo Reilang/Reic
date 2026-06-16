@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-char KEYWORDS[64][64] = {"if", "for", "while"};
+char KEYWORDS[64][64] = {"if", "for", "while", "return"};
 
 void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
 {
