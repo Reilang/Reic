@@ -32,6 +32,14 @@ int main(void)
 
     tokenize(&lexer_, &tokens, &diags);
 
+    /* parse */
+    parser_.tokens = tokens;
+    parser_.cursor = 0;
+    state_new(&parser_.states, 8);
+    node_new(&nodes, 16);
+
+    parse(&parser_, &nodes, &diags); 
+
     printf("tokens (%d):\n", tokens.size);
     for (i = 0; i < tokens.size; i++) {
         char *s = token_print(tokens.data[i]);
@@ -40,14 +48,6 @@ int main(void)
             free(s);
         }
     }
-
-    /* parse */
-    parser_.tokens = tokens;
-    parser_.cursor = 0;
-    state_new(&parser_.states, 8);
-    node_new(&nodes, 16);
-
-    parse(&parser_, &nodes, &diags);
 
     printf("\ndiagnostics (%d):\n", diags.size);
     for (i = 0; i < diags.size; i++) {
@@ -68,6 +68,7 @@ int main(void)
     }
 
     /* cleanup */
+    /* In fact, OS will do this:-) */
     state_free(&parser_.states);
     node_free(&nodes);
     token_free(&tokens);
