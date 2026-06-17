@@ -2,14 +2,17 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |  R e i L a n g                                                             |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * ast.c — AST node utility: debug string conversion.
+ * ast.c — AST node utility: debug string conversion and ASCII tree printing.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "ast/ast.h"
+#include "collect/strbuf.h"
 #include "type/type.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const char *kind_name(anode_kind kind)
 {
@@ -94,4 +97,134 @@ char *anode_print(anode node_)
     }
 
     return buf;
+}
+
+static const char *binop_symbol(tktype op)
+{
+    switch (op) {
+    case TK_ADD:   return "+";
+    case TK_MINUS: return "-";
+    case TK_STAR:  return "*";
+    case TK_SLASH: return "/";
+    default:       return "?";
+    }
+}
+
+static void node_label(const anode *n, char *buf, size_t buf_sz)
+{
+    switch (n->kind) {
+    case ANODE_IDENT:
+    case ANODE_IDENT_FUNC:
+    case ANODE_IDENT_VAR:
+        snprintf(buf, buf_sz, "%s '%s'",
+                 kind_name(n->kind),
+                 n->sv ? n->sv : "?");
+        break;
+    case ANODE_IDENT_TYPE:
+        snprintf(buf, buf_sz, "%s '%s'",
+                 kind_name(n->kind),
+                 type_info_of((type_tag)n->iv)->name);
+        break;
+    case ANODE_ILITERAL:
+        snprintf(buf, buf_sz, "%s %lld",
+                 kind_name(n->kind),
+                 (long long)n->iv);
+        break;
+    case ANODE_FLITERAL:
+        snprintf(buf, buf_sz, "%s %f",
+                 kind_name(n->kind),
+                 n->fv);
+        break;
+    case ANODE_SLITERAL:
+        snprintf(buf, buf_sz, "%s \"%s\"",
+                 kind_name(n->kind),
+                 n->sv ? n->sv : "");
+        break;
+    case ANODE_CLITERAL:
+        snprintf(buf, buf_sz, "%s '%c'",
+                 kind_name(n->kind),
+                 n->cv);
+        break;
+    case ANODE_BINOP:
+        snprintf(buf, buf_sz, "%s '%s'",
+                 kind_name(n->kind),
+                 binop_symbol(n->op));
+        break;
+    default:
+        snprintf(buf, buf_sz, "%s", kind_name(n->kind));
+        break;
+    }
+}
+
+static void print_children(strbuf *sb, node_vector nodes, int idx,
+                           const char *indent)
+{
+    int cur = nodes.data[idx].child;
+    while (cur >= 0) {
+        int next = nodes.data[cur].next;
+        bool is_last = (next < 0);
+
+        char label[128];
+        node_label(&nodes.data[cur], label, sizeof(label));
+
+        strbuf_addf(sb, "%s%s %s\n",
+                    indent,
+                    is_last ? "`--" : "|--",
+                    label);
+
+        if (nodes.data[cur].child >= 0) {
+            char child_indent[256];
+            snprintf(child_indent, sizeof(child_indent), "%s%s",
+                     indent,
+                     is_last ? "    " : "|   ");
+            print_children(sb, nodes, cur, child_indent);
+        }
+
+        cur = next;
+    }
+}
+
+char *ast_print_tree(node_vector nodes)
+{
+    strbuf sb;
+    int i;
+    bool *referenced;
+    int root_cnt = 0;
+
+    strbuf_init(&sb, 4096);
+
+    if (nodes.size == 0) {
+        strbuf_add(&sb, "(empty)\n");
+        return strbuf_detach(&sb);
+    }
+
+    referenced = malloc((size_t)nodes.size * sizeof(bool));
+    if (!referenced) abort();
+    memset(referenced, 0, (size_t)nodes.size * sizeof(bool));
+
+    for (i = 0; i < nodes.size; i++) {
+        const anode *n = &nodes.data[i];
+        if (n->child >= 0) referenced[n->child] = true;
+        if (n->next >= 0)  referenced[n->next]  = true;
+    }
+
+    for (i = 0; i < nodes.size; i++) {
+        if (referenced[i]) continue;
+
+        char label[128];
+        node_label(&nodes.data[i], label, sizeof(label));
+        strbuf_addf(&sb, "%s\n", label);
+
+        if (nodes.data[i].child >= 0)
+            print_children(&sb, nodes, i, "");
+
+        root_cnt++;
+    }
+
+    free(referenced);
+
+    if (root_cnt == 0)
+        strbuf_add(&sb, "(no roots)\n");
+
+    return strbuf_detach(&sb);
 }

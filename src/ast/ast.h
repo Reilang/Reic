@@ -63,5 +63,6 @@ typedef struct {
 DECLARE_VECTOR(anode, node)
 
 char *anode_print(anode node_);
+char *ast_print_tree(node_vector nodes);
 
 #endif /* AST_AST_H */

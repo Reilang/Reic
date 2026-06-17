@@ -59,12 +59,12 @@ int main(void)
         }
     }
 
-    printf("\nnodes (%d):\n", nodes.size);
-    for (i = 0; i < nodes.size; i++) {
-        char *s = anode_print(nodes.data[i]);
-        if (s) {
-            printf("  [idx:%d] %s\n", i, s);
-            free(s);
+    printf("\nAST:\n");
+    {
+        char *tree = ast_print_tree(nodes);
+        if (tree) {
+            printf("%s", tree);
+            free(tree);
         }
     }
 
