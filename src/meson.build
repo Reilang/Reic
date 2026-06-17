@@ -5,6 +5,7 @@ srcs = files(
   'diag/diag.c',
   'parser/parser.c',
   'ast/ast.c',
+  'codegen/codegen.c',
 )
 
 executable('reilang',

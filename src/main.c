@@ -6,6 +6,7 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "ast/ast.h"
+#include "codegen/codegen.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 
@@ -14,7 +15,7 @@
 
 int main(void)
 {
-    char src_raw[] = "fn main() -> void {{\n"
+    char src_raw[] = "fn main() -> void {\n"
                      "    return\n"
                      "}\n";
 
@@ -38,7 +39,7 @@ int main(void)
     state_new(&parser_.states, 8);
     node_new(&nodes, 16);
 
-    parse(&parser_, &nodes, &diags); 
+    parse(&parser_, &nodes, &diags);
 
     printf("tokens (%d):\n", tokens.size);
     for (i = 0; i < tokens.size; i++) {
@@ -65,6 +66,14 @@ int main(void)
             printf("  %s\n", s);
             free(s);
         }
+    }
+
+    /* codegen */
+    if (diags.size == 0) {
+        if (codegen_emit(&nodes, "output.ll") == 0)
+            printf("\n=> wrote output.ll\n");
+        else
+            printf("\n=> codegen failed\n");
     }
 
     /* cleanup */
