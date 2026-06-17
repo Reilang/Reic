@@ -19,7 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-char BUILTIN_TYPES[64][64] = {"void", "int32"};
+char BUILTIN_TYPES[64][64] = {"void", "int8", "int16", "int32", "int64",
+                                      "nat8", "nat16", "nat32", "nat64"};
 
 static int is_builtin_type(const char *name)
 {
