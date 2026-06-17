@@ -290,33 +290,31 @@ static int parse_return(parser *p, node_vector *nodes, diag_vector *diags)
     return new_node(nodes, ANODE_RETURN);
 }
 
-void parse(parser *parser_, node_vector *nodes, diag_vector *diags)
+void parse(parser *p, node_vector *nodes, diag_vector *diags)
 {
-    state_new(&parser_->states, 8);
-
-    while (parser_->cursor < parser_->tokens.size) {
-        skip_newlines(parser_);
-        if (at_eof(parser_))
+    while (p->cursor < p->tokens.size) {
+        skip_newlines(p);
+        if (at_eof(p))
             break;
 
-        if (parser_->states.size == 0) {
-            token tk = curtok(parser_);
+        if (p->states.size == 0) {
+            token tk = curtok(p);
             if (tk.type == TK_CBRACE) {
                 diag_add(diags, LEVEL_ERROR, "unexpected '}'",
                         tk.line, tk.column);
-                parser_->cursor++;
+                p->cursor++;
             } else {
-                parse_stmt(parser_, nodes, diags);
+                parse_stmt(p, nodes, diags);
             }
         } else {
-            switch (state_get(&parser_->states, parser_->states.size - 1)) {
+            switch (state_get(&p->states, p->states.size - 1)) {
             case PSTATE_BLOCK: {
-                token tk = curtok(parser_);
+                token tk = curtok(p);
                 if (tk.type == TK_CBRACE) {
-                    parser_->cursor++;
-                    state_pop(&parser_->states);
+                    p->cursor++;
+                    state_pop(&p->states);
                 } else {
-                    parse_stmt(parser_, nodes, diags);
+                    parse_stmt(p, nodes, diags);
                 }
                 break;
             }
