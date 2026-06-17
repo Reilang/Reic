@@ -63,7 +63,7 @@ int main(void)
     for (i = 0; i < nodes.size; i++) {
         char *s = anode_print(nodes.data[i]);
         if (s) {
-            printf("  %s\n", s);
+            printf("  [idx:%d] %s\n", i, s);
             free(s);
         }
     }
