@@ -15,8 +15,8 @@
 
 int main(void)
 {
-    char src_raw[] = "fn main() -> void {\n"
-                     "    return\n"
+    char src_raw[] = "fn main() -> int32 {\n"
+                     "    return 1*2+3\n"
                      "}\n";
 
     lexer lexer_;

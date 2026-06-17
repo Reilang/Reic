@@ -75,6 +75,7 @@ static int new_ident(node_vector *nodes, const char *name, anode_kind kind)
 }
 
 static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags);
+static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
 static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_return(parser *p, node_vector *nodes, diag_vector *diags);
 
@@ -315,11 +316,96 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     return func_idx;
 }
 
+static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
+static int parse_primary(parser *p, node_vector *nodes, diag_vector *diags);
+
+static int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    token tk = curtok(p);
+
+    if (tk.type == TK_ILITER) {
+        int idx = new_node(nodes, ANODE_ILITERAL);
+        nodes->data[idx].iv = tk.value.integer;
+        p->cursor++;
+        return idx;
+    }
+    if (tk.type == TK_FLITER) {
+        int idx = new_node(nodes, ANODE_FLITERAL);
+        nodes->data[idx].fv = tk.value.float_;
+        p->cursor++;
+        return idx;
+    }
+    if (tk.type == TK_IDENT || tk.type == TK_IDENT_VAR) {
+        int idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
+        p->cursor++;
+        return idx;
+    }
+    if (tk.type == TK_OPAREN) {
+        p->cursor++;
+        skip_newlines(p);
+        int idx = parse_expr(p, nodes, diags, 0);
+        skip_newlines(p);
+        if (curtok(p).type != TK_CPAREN) {
+            diag_add(diags, LEVEL_ERROR, "expected ')'",
+                     curtok(p).line, curtok(p).column);
+            sync(p);
+            return idx >= 0 ? idx : -1;
+        }
+        p->cursor++;
+        return idx;
+    }
+
+    diag_add(diags, LEVEL_ERROR, "expected expression",
+             tk.line, tk.column);
+    sync(p);
+    return -1;
+}
+
+static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec)
+{
+    int left = parse_primary(p, nodes, diags);
+    if (left < 0)
+        return -1;
+
+    for (;;) {
+        token tk = curtok(p);
+        int prec;
+
+        switch (tk.type) {
+        case TK_ADD:
+        case TK_MINUS:  prec = 1; break;
+        case TK_STAR:
+        case TK_SLASH:  prec = 2; break;
+        default:        prec = 0; break;
+        }
+        if (prec <= min_prec)
+            break;
+
+        tktype op = tk.type;
+        p->cursor++;
+
+        int right = parse_expr(p, nodes, diags, prec);
+        if (right < 0)
+            return left;
+
+        int binop = new_node(nodes, ANODE_BINOP);
+        nodes->data[binop].op = op;
+        nodes->data[binop].child = left;
+        nodes->data[left].next = right;
+        left = binop;
+    }
+
+    return left;
+}
+
 static int parse_return(parser *p, node_vector *nodes, diag_vector *diags)
 {
     p->cursor++;
-    (void)diags;
-    return new_node(nodes, ANODE_RETURN);
+    int ret_idx = new_node(nodes, ANODE_RETURN);
+    int expr_idx = parse_expr(p, nodes, diags, 0);
+    if (expr_idx >= 0)
+        nodes->data[ret_idx].child = expr_idx;
+    return ret_idx;
 }
 
 void parse(parser *p, node_vector *nodes, diag_vector *diags)
