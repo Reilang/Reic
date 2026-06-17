@@ -19,6 +19,9 @@ typedef enum {
     ANODE_NONE,
 
     ANODE_IDENT,
+    ANODE_IDENT_FUNC,
+    ANODE_IDENT_VAR,
+    ANODE_IDENT_TYPE,
     ANODE_ILITERAL,
     ANODE_FLITERAL,
     ANODE_SLITERAL,
@@ -58,5 +61,7 @@ typedef struct {
 } anode;
 
 DECLARE_VECTOR(anode, node)
+
+char *anode_print(anode node_);
 
 #endif /* AST_AST_H */

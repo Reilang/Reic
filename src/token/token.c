@@ -79,6 +79,9 @@ char *token_print(token token_)
     case TK_CPAREN:
         snprintf(buffer, 256, "[%d:%d] )", token_.line, token_.column);
         break;
+    case TK_COMMA:
+        snprintf(buffer, 256, "[%d:%d] ,", token_.line, token_.column);
+        break;
     case TK_OBRACKET:
         snprintf(buffer, 256, "[%d:%d] [", token_.line, token_.column);
         break;

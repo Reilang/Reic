@@ -16,7 +16,7 @@
 #include "diag/diag.h"
 #include "token/token.h"
 
-typedef enum {
+typedef enum { 
     PSTATE_FUNC,
     PSTATE_STMT,
     PSTATE_EXPR,
@@ -27,7 +27,7 @@ typedef enum {
     PSTATE_FOR,
     PSTATE_RETURN,
 
-    PSTATE_ERROR
+    PSTATE_ERROR,
 } pstate;
 
 DECLARE_VECTOR(pstate, state)
@@ -38,6 +38,6 @@ typedef struct {
     int cursor;
 } parser;
 
-void parse(parser *parser_, node_vector *nodes, diag_vector *diags);
+void parse(parser *p, node_vector *nodes, diag_vector *diags);
 
 #endif /* PARSER_PARSER_H */

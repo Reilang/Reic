@@ -4,10 +4,10 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * lexer.c — State-machine tokenizer driven by the lexer state field.
  *
- * Each iteration of the main loop dispatches on lexer_->state.  Normal
- * state skips whitespace and routes into sub-states for identifiers,
- * numeric literals, strings, and character literals.  Error recovery is
- * handled through the dedicated error state.
+ * Each iteration of the main loop dispatches on l->state.  Normal state skips
+ * whitespace and routes into sub-states for identifiers, numeric literals,
+ * strings, and character literals.  Error recovery is handled through the
+ * dedicated error state.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "lexer/lexer.h"
@@ -19,278 +19,286 @@
 
 char KEYWORDS[64][64] = {"if", "for", "while", "return", "fn"};
 
-void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
+static char nextch(lexer *l)
+{
+    char c = *(l->src_.raw++);
+    l->src_.column++;
+    return c;
+}
+
+static void src_back(lexer *l)
+{
+    l->src_.raw--;
+    l->src_.column--;
+}
+
+static void emit_tok(lexer *l, token_vector *tokens, tktype type, int line, int col)
+{
+    token tk = {0};
+    (void)l;
+    tk.type = type;
+    tk.line = line;
+    tk.column = col;
+    token_push(tokens, tk);
+}
+
+static void emit_tok_str(lexer *l, token_vector *tokens, tktype type,
+                         const char *str, int line, int col)
+{
+    token tk = {0};
+    (void)l;
+    tk.type = type;
+    tk.line = line;
+    tk.column = col;
+    tk.value.string = strdup(str);
+    if (!tk.value.string)
+        abort();
+    token_push(tokens, tk);
+}
+
+void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
 {
     char cur = 0;
     int pos = 0;
     int sline = 0;
     int scol = 0;
-    token tk = {0};
-    diag dg = {0};
 
-    lexer_->src_.line = 1;
-    lexer_->src_.column = 0;
-    lexer_->paren_depth = 0;
-    lexer_->state = LSTATE_NORMAL;
+    l->src_.line = 1;
+    l->src_.column = 0;
+    l->paren_depth = 0;
+    l->state = LSTATE_NORMAL;
 
-    while (lexer_->state != LSTATE_END) {
-        switch (lexer_->state) {
+    while (l->state != LSTATE_END) {
+        switch (l->state) {
 
         case LSTATE_NORMAL:
-            sline = lexer_->src_.line;
-            scol = lexer_->src_.column;
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            sline = l->src_.line;
+            scol = l->src_.column;
+            cur = nextch(l);
 
             if (cur == ' ' || cur == '\t' || cur == '\r')
                 break;
 
             if (cur == '\n') {
-                if (lexer_->paren_depth == 0) {
-                    tk.type = TK_NEXTLINE;
-                    tk.line = lexer_->src_.line;
-                    tk.column = lexer_->src_.column;
-                    token_push(tokens, tk);
-                }
-                lexer_->src_.line++;
-                lexer_->src_.column = 0;
+                if (l->paren_depth == 0)
+                    emit_tok(l, tokens, TK_NEXTLINE, l->src_.line,
+                             l->src_.column);
+                l->src_.line++;
+                l->src_.column = 0;
                 break;
             }
 
             if (cur == '\0') {
-                tk.type = TK_EOF;
-                tk.line = lexer_->src_.line;
-                tk.column = lexer_->src_.column;
-                token_push(tokens, tk);
-                lexer_->state = LSTATE_END;
+                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.column);
+                l->state = LSTATE_END;
                 break;
             }
 
             if (cur == '(' || cur == ')' || cur == '[' || cur == ']'
-                || cur == '{' || cur == '}' || cur == '+' || cur == '-' || cur == '*'
-                || cur == '/') {
-                tk.line = sline;
-                tk.column = scol;
+                || cur == '{' || cur == '}' || cur == ',' || cur == '+'
+                || cur == '-' || cur == '*' || cur == '/' || cur == ':'
+                || cur == '<' || cur == '>') {
                 switch (cur) {
-                case '+': tk.type = TK_ADD;      break;
-                case '-': tk.type = TK_MINUS;    break;
-                case '*': tk.type = TK_STAR;     break;
-                case '/': tk.type = TK_SLASH;    break;
+                case '+': emit_tok(l, tokens, TK_ADD,       sline, scol); break;
+                case '-': emit_tok(l, tokens, TK_MINUS,     sline, scol); break;
+                case '*': emit_tok(l, tokens, TK_STAR,      sline, scol); break;
+                case '/': emit_tok(l, tokens, TK_SLASH,     sline, scol); break;
                 case '(':
-                    tk.type = TK_OPAREN;
-                    lexer_->paren_depth++;
+                    emit_tok(l, tokens, TK_OPAREN, sline, scol);
+                    l->paren_depth++;
                     break;
                 case ')':
-                    tk.type = TK_CPAREN;
-                    if (lexer_->paren_depth > 0)
-                        lexer_->paren_depth--;
+                    emit_tok(l, tokens, TK_CPAREN, sline, scol);
+                    if (l->paren_depth > 0)
+                        l->paren_depth--;
                     break;
-                case '[': tk.type = TK_OBRACKET; break;
-                case ']': tk.type = TK_CBRACKET; break;
-                case '{': tk.type = TK_OBRACE;   break;
-                case '}': tk.type = TK_CBRACE;   break;
-                default:  lexer_->state = LSTATE_ERROR; continue;
+                case ',': emit_tok(l, tokens, TK_COMMA,     sline, scol); break;
+                case '[': emit_tok(l, tokens, TK_OBRACKET,  sline, scol); break;
+                case ']': emit_tok(l, tokens, TK_CBRACKET,  sline, scol); break;
+                case '{': emit_tok(l, tokens, TK_OBRACE,    sline, scol); break;
+                case '}': emit_tok(l, tokens, TK_CBRACE,    sline, scol); break;
+                case ':': emit_tok(l, tokens, TK_COLON,     sline, scol); break;
+                case '<': emit_tok(l, tokens, TK_OABRACKET, sline, scol); break;
+                case '>': emit_tok(l, tokens, TK_CABRACKET, sline, scol); break;
+                default:  l->state = LSTATE_ERROR; continue;
                 }
-                token_push(tokens, tk);
                 break;
             }
 
             if (cur == ';') {
-                lexer_->state = LSTATE_COMMENT;
+                l->state = LSTATE_COMMENT;
                 break;
             }
 
             if (isalpha(cur) || cur == '_') {
                 pos = 0;
-                lexer_->readnow[pos++] = cur;
-                sline = lexer_->src_.line;
-                scol = lexer_->src_.column - 1;
-                lexer_->state = LSTATE_IDENT;
+                l->readnow[pos++] = cur;
+                sline = l->src_.line;
+                scol = l->src_.column - 1;
+                l->state = LSTATE_IDENT;
                 break;
             }
 
             if (isdigit(cur)) {
                 pos = 0;
-                lexer_->readnow[pos++] = cur;
-                sline = lexer_->src_.line;
-                scol = lexer_->src_.column - 1;
-                lexer_->state = LSTATE_ILITER;
+                l->readnow[pos++] = cur;
+                sline = l->src_.line;
+                scol = l->src_.column - 1;
+                l->state = LSTATE_ILITER;
                 break;
             }
 
             if (cur == '"') {
                 pos = 0;
-                sline = lexer_->src_.line;
-                scol = lexer_->src_.column - 1;
-                lexer_->state = LSTATE_SLITER;
+                sline = l->src_.line;
+                scol = l->src_.column - 1;
+                l->state = LSTATE_SLITER;
                 break;
             }
 
             if (cur == '\'') {
-                sline = lexer_->src_.line;
-                scol = lexer_->src_.column - 1;
-                lexer_->state = LSTATE_CLITER;
+                sline = l->src_.line;
+                scol = l->src_.column - 1;
+                l->state = LSTATE_CLITER;
                 break;
             }
 
-            lexer_->state = LSTATE_ERROR;
+            l->state = LSTATE_ERROR;
             break;
 
         case LSTATE_IDENT:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            cur = nextch(l);
             if (isalnum(cur) || cur == '_') {
                 if (pos < 255)
-                    lexer_->readnow[pos++] = cur;
+                    l->readnow[pos++] = cur;
                 break;
             }
-            lexer_->src_.raw--;
-            lexer_->src_.column--;
-            lexer_->readnow[pos] = '\0';
+            src_back(l);
+            l->readnow[pos] = '\0';
             {
                 int ki;
-                tk.type = TK_IDENT;
+                tktype t = TK_IDENT;
                 for (ki = 0; ki < 64; ki++) {
                     if (KEYWORDS[ki][0] == '\0')
                         continue;
-                    if (strcmp(lexer_->readnow, KEYWORDS[ki]) == 0) {
-                        tk.type = TK_KEYWORD;
+                    if (strcmp(l->readnow, KEYWORDS[ki]) == 0) {
+                        t = TK_KEYWORD;
                         break;
                     }
                 }
+                emit_tok_str(l, tokens, t, l->readnow, sline, scol);
             }
-            tk.line = sline;
-            tk.column = scol;
-            tk.value.string = strdup(lexer_->readnow);
-            if (!tk.value.string)
-                abort();
-            token_push(tokens, tk);
-            lexer_->state = LSTATE_NORMAL;
+            l->state = LSTATE_NORMAL;
             break;
 
         case LSTATE_ILITER:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            cur = nextch(l);
             if (isdigit(cur)) {
                 if (pos < 255)
-                    lexer_->readnow[pos++] = cur;
+                    l->readnow[pos++] = cur;
                 break;
             }
             if (cur == '.') {
                 if (pos < 255)
-                    lexer_->readnow[pos++] = cur;
-                lexer_->state = LSTATE_FLITER;
+                    l->readnow[pos++] = cur;
+                l->state = LSTATE_FLITER;
                 break;
             }
-            lexer_->src_.raw--;
-            lexer_->src_.column--;
-            lexer_->readnow[pos] = '\0';
-            tk.type = TK_ILITER;
-            tk.line = sline;
-            tk.column = scol;
-            tk.value.integer = (int64_t)strtoll(lexer_->readnow, NULL, 10);
-            token_push(tokens, tk);
-            lexer_->state = LSTATE_NORMAL;
+            src_back(l);
+            l->readnow[pos] = '\0';
+            {
+                token tk = {0};
+                tk.type = TK_ILITER;
+                tk.line = sline;
+                tk.column = scol;
+                tk.value.integer = (int64_t)strtoll(l->readnow, NULL, 10);
+                token_push(tokens, tk);
+            }
+            l->state = LSTATE_NORMAL;
             break;
 
         case LSTATE_FLITER:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            cur = nextch(l);
             if (isdigit(cur)) {
                 if (pos < 255)
-                    lexer_->readnow[pos++] = cur;
+                    l->readnow[pos++] = cur;
                 break;
             }
-            if (cur == '.' && memchr(lexer_->readnow, '.', (size_t)pos) != NULL) {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "duplicate dot in float literal");
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                lexer_->readnow[pos] = '\0';
-                tk.type = TK_FLITER;
-                tk.line = sline;
-                tk.column = scol;
-                tk.value.float_ = strtod(lexer_->readnow, NULL);
-                token_push(tokens, tk);
-                while (*(lexer_->src_.raw) && *(lexer_->src_.raw) != ' '
-                       && *(lexer_->src_.raw) != '\t' && *(lexer_->src_.raw) != '\n'
-                       && *(lexer_->src_.raw) != '\r') {
-                    lexer_->src_.raw++;
-                    lexer_->src_.column++;
+            if (cur == '.' && memchr(l->readnow, '.', (size_t)pos) != NULL) {
+                diag_add(diags, LEVEL_ERROR, "duplicate dot in float literal",
+                         sline, scol);
+                l->readnow[pos] = '\0';
+                {
+                    token tk = {0};
+                    tk.type = TK_FLITER;
+                    tk.line = sline;
+                    tk.column = scol;
+                    tk.value.float_ = strtod(l->readnow, NULL);
+                    token_push(tokens, tk);
                 }
-                lexer_->state = LSTATE_NORMAL;
+                while (*(l->src_.raw) && *(l->src_.raw) != ' '
+                       && *(l->src_.raw) != '\t' && *(l->src_.raw) != '\n'
+                       && *(l->src_.raw) != '\r') {
+                    nextch(l);
+                }
+                l->state = LSTATE_NORMAL;
                 break;
             }
-            if (pos > 0 && lexer_->readnow[pos - 1] == '.') {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "unexpected character '%c' (0x%02X) in float literal",
-                         cur, (unsigned char)cur);
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                lexer_->readnow[pos] = '\0';
-                tk.type = TK_FLITER;
-                tk.line = sline;
-                tk.column = scol;
-                tk.value.float_ = strtod(lexer_->readnow, NULL);
-                token_push(tokens, tk);
+            if (pos > 0 && l->readnow[pos - 1] == '.') {
+                {
+                    char fbuf[128];
+                    snprintf(fbuf, sizeof(fbuf),
+                             "unexpected character '%c' (0x%02X) in float literal",
+                             cur, (unsigned char)cur);
+                    diag_add(diags, LEVEL_ERROR, fbuf, sline, scol);
+                }
+                l->readnow[pos] = '\0';
+                {
+                    token tk = {0};
+                    tk.type = TK_FLITER;
+                    tk.line = sline;
+                    tk.column = scol;
+                    tk.value.float_ = strtod(l->readnow, NULL);
+                    token_push(tokens, tk);
+                }
                 if (cur == '\n') {
-                    lexer_->src_.line++;
-                    lexer_->src_.column = 0;
+                    l->src_.line++;
+                    l->src_.column = 0;
                 }
-                lexer_->state = LSTATE_NORMAL;
+                l->state = LSTATE_NORMAL;
                 break;
             }
-            lexer_->src_.raw--;
-            lexer_->src_.column--;
-            lexer_->readnow[pos] = '\0';
-            tk.type = TK_FLITER;
-            tk.line = sline;
-            tk.column = scol;
-            tk.value.float_ = strtod(lexer_->readnow, NULL);
-            token_push(tokens, tk);
-            lexer_->state = LSTATE_NORMAL;
+            src_back(l);
+            l->readnow[pos] = '\0';
+            {
+                token tk = {0};
+                tk.type = TK_FLITER;
+                tk.line = sline;
+                tk.column = scol;
+                tk.value.float_ = strtod(l->readnow, NULL);
+                token_push(tokens, tk);
+            }
+            l->state = LSTATE_NORMAL;
             break;
 
         case LSTATE_SLITER:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            cur = nextch(l);
             if (cur == '\0' || cur == '\n') {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "unterminated string literal");
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                lexer_->readnow[pos] = '\0';
-                tk.type = TK_SLITER;
-                tk.line = sline;
-                tk.column = scol;
-                tk.value.string = strdup(lexer_->readnow);
-                if (!tk.value.string)
-                    abort();
-                token_push(tokens, tk);
-                lexer_->state = LSTATE_NORMAL;
+                diag_add(diags, LEVEL_ERROR, "unterminated string literal",
+                         sline, scol);
+                l->readnow[pos] = '\0';
+                emit_tok_str(l, tokens, TK_SLITER, l->readnow, sline, scol);
+                l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '"') {
-                lexer_->readnow[pos] = '\0';
-                tk.type = TK_SLITER;
-                tk.line = sline;
-                tk.column = scol;
-                tk.value.string = strdup(lexer_->readnow);
-                if (!tk.value.string)
-                    abort();
-                token_push(tokens, tk);
-                lexer_->state = LSTATE_NORMAL;
+                l->readnow[pos] = '\0';
+                emit_tok_str(l, tokens, TK_SLITER, l->readnow, sline, scol);
+                l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '\\') {
-                cur = *(lexer_->src_.raw++);
-                lexer_->src_.column++;
+                cur = nextch(l);
                 switch (cur) {
                 case 'n':  cur = '\n'; break;
                 case 't':  cur = '\t'; break;
@@ -299,47 +307,34 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 case '"':  cur = '"';  break;
                 case '\'': cur = '\''; break;
                 case '0':  cur = '\0'; break;
-                default:                 break;
+                default:               break;
                 }
                 if (pos < 255)
-                    lexer_->readnow[pos++] = cur;
+                    l->readnow[pos++] = cur;
                 break;
             }
             if (pos < 255)
-                lexer_->readnow[pos++] = cur;
+                l->readnow[pos++] = cur;
             break;
 
         case LSTATE_CLITER:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            cur = nextch(l);
             if (cur == '\0' || cur == '\n') {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "unterminated character literal");
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                lexer_->state = LSTATE_NORMAL;
+                diag_add(diags, LEVEL_ERROR, "unterminated character literal",
+                         sline, scol);
+                l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '\'') {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "empty character literal");
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                tk.type = TK_CLITER;
-                tk.line = sline;
-                tk.column = scol;
-                tk.value.char_ = '\0';
-                token_push(tokens, tk);
-                lexer_->state = LSTATE_NORMAL;
+                diag_add(diags, LEVEL_ERROR, "empty character literal",
+                         sline, scol);
+                emit_tok(l, tokens, TK_CLITER, sline, scol);
+                tokens->data[tokens->size - 1].value.char_ = '\0';
+                l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '\\') {
-                cur = *(lexer_->src_.raw++);
-                lexer_->src_.column++;
+                cur = nextch(l);
                 switch (cur) {
                 case 'n':  cur = '\n'; break;
                 case 't':  cur = '\t'; break;
@@ -348,62 +343,46 @@ void tokenize(lexer *lexer_, token_vector *tokens, diag_vector *diags)
                 case '\'': cur = '\''; break;
                 case '"':  cur = '"';  break;
                 case '0':  cur = '\0'; break;
-                default:                 break;
+                default:               break;
                 }
             }
-            lexer_->readnow[0] = cur;
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            l->readnow[0] = cur;
+            cur = nextch(l);
             if (cur != '\'') {
-                snprintf(dg.whaterr, sizeof(dg.whaterr),
-                         "unterminated character literal");
-                dg.line = sline;
-                dg.column = scol;
-                dg.level_ = LEVEL_ERROR;
-                diag_push(diags, dg);
-                lexer_->state = LSTATE_NORMAL;
+                diag_add(diags, LEVEL_ERROR, "unterminated character literal",
+                         sline, scol);
+                l->state = LSTATE_NORMAL;
                 break;
             }
-            tk.type = TK_CLITER;
-            tk.line = sline;
-            tk.column = scol;
-            tk.value.char_ = lexer_->readnow[0];
-            token_push(tokens, tk);
-            lexer_->state = LSTATE_NORMAL;
+            emit_tok(l, tokens, TK_CLITER, sline, scol);
+            tokens->data[tokens->size - 1].value.char_ = l->readnow[0];
+            l->state = LSTATE_NORMAL;
             break;
 
         case LSTATE_COMMENT:
-            cur = *(lexer_->src_.raw++);
-            lexer_->src_.column++;
+            cur = nextch(l);
             if (cur == '\0') {
-                tk.type = TK_EOF;
-                tk.line = lexer_->src_.line;
-                tk.column = lexer_->src_.column;
-                token_push(tokens, tk);
-                lexer_->state = LSTATE_END;
+                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.column);
+                l->state = LSTATE_END;
                 break;
             }
             if (cur == '\n') {
-                if (lexer_->paren_depth == 0) {
-                    tk.type = TK_NEXTLINE;
-                    tk.line = lexer_->src_.line;
-                    tk.column = lexer_->src_.column;
-                    token_push(tokens, tk);
-                }
-                lexer_->src_.line++;
-                lexer_->src_.column = 0;
-                lexer_->state = LSTATE_NORMAL;
+                if (l->paren_depth == 0)
+                    emit_tok(l, tokens, TK_NEXTLINE, l->src_.line,
+                             l->src_.column);
+                l->src_.line++;
+                l->src_.column = 0;
+                l->state = LSTATE_NORMAL;
             }
             break;
 
-        case LSTATE_ERROR:
-            snprintf(dg.whaterr, sizeof(dg.whaterr),
+        case LSTATE_ERROR: {
+            char efbuf[128];
+            snprintf(efbuf, sizeof(efbuf),
                      "unexpected character '%c' (0x%02X)", cur, (unsigned char)cur);
-            dg.line = sline;
-            dg.column = scol;
-            dg.level_ = LEVEL_ERROR;
-            diag_push(diags, dg);
-            lexer_->state = LSTATE_NORMAL;
+            diag_add(diags, LEVEL_ERROR, efbuf, sline, scol);
+        }
+            l->state = LSTATE_NORMAL;
             break;
 
         case LSTATE_END:

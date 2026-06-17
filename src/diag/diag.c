@@ -9,8 +9,19 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "diag/diag.h"
+
+void diag_add(diag_vector *diags, level lv, const char *msg, int line, int column)
+{
+    diag d = {0};
+    snprintf(d.whaterr, sizeof(d.whaterr), "%s", msg);
+    d.line = line;
+    d.column = column;
+    d.level_ = lv;
+    diag_push(diags, d);
+}
 
 int has_level(const diag_vector *diags, level lv)
 {

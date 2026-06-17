@@ -40,6 +40,7 @@ typedef enum {
     TK_CBRACKET,
     TK_OBRACE,
     TK_CBRACE,
+    TK_COMMA,
     TK_OABRACKET,
     TK_CABRACKET,
 

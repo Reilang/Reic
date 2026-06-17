@@ -29,6 +29,8 @@ typedef struct {
 
 DECLARE_VECTOR(diag, diag)
 
+void diag_add(diag_vector *diags, level lv, const char *msg, int line, int column);
+
 int has_level(const diag_vector *diags, level lv);
 
 char *diag_print(diag diag_);

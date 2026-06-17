@@ -18,12 +18,15 @@
 
 typedef enum {
     LSTATE_NORMAL,
+
     LSTATE_IDENT,
     LSTATE_ILITER,
     LSTATE_FLITER,
     LSTATE_SLITER,
     LSTATE_CLITER,
+
     LSTATE_COMMENT,
+
     LSTATE_ERROR,
     LSTATE_END
 } lstate;
