@@ -36,6 +36,10 @@ static int find_block(node_vector *nodes, int func_idx)
     return nodes->data[rt].next;
 }
 
+static void emit_expr_str(FILE *f, node_vector *nodes, int idx,
+                           const char *llvm_ty, int *reg_cnt,
+                           char *out, size_t out_sz);
+
 static void emit_stmt(FILE *f, node_vector *nodes, int idx,
                       const char *ret_llvm);
 
@@ -45,6 +49,63 @@ static void emit_stmt_chain(FILE *f, node_vector *nodes, int idx,
     while (idx >= 0) {
         emit_stmt(f, nodes, idx, ret_llvm);
         idx = nodes->data[idx].next;
+    }
+}
+
+static void emit_expr_str(FILE *f, node_vector *nodes, int idx,
+                           const char *llvm_ty, int *reg_cnt,
+                           char *out, size_t out_sz)
+{
+    if (idx < 0) {
+        snprintf(out, out_sz, "undef");
+        return;
+    }
+
+    anode *n = &nodes->data[idx];
+
+    switch (n->kind) {
+    case ANODE_ILITERAL:
+        snprintf(out, out_sz, "%lld", (long long)n->iv);
+        return;
+
+    case ANODE_FLITERAL:
+        snprintf(out, out_sz, "%f", n->fv);
+        return;
+
+    case ANODE_IDENT:
+    case ANODE_IDENT_VAR:
+        snprintf(out, out_sz, "%%%s", n->sv);
+        return;
+
+    case ANODE_BINOP: {
+        char left_str[32], right_str[32];
+        int left_idx = n->child;
+        int right_idx = nodes->data[left_idx].next;
+
+        emit_expr_str(f, nodes, left_idx, llvm_ty, reg_cnt,
+                      left_str, sizeof(left_str));
+        emit_expr_str(f, nodes, right_idx, llvm_ty, reg_cnt,
+                      right_str, sizeof(right_str));
+
+        const char *opname;
+        switch (n->op) {
+        case TK_ADD:   opname = "add";  break;
+        case TK_MINUS: opname = "sub";  break;
+        case TK_STAR:  opname = "mul";  break;
+        case TK_SLASH: opname = "sdiv"; break;
+        default:       opname = "add";  break;
+        }
+
+        int reg = (*reg_cnt)++;
+        snprintf(out, out_sz, "%%%d", reg);
+        fprintf(f, "  %s = %s %s %s, %s\n",
+                out, opname, llvm_ty, left_str, right_str);
+        return;
+    }
+
+    default:
+        snprintf(out, out_sz, "undef");
+        return;
     }
 }
 
@@ -66,6 +127,12 @@ static void emit_stmt(FILE *f, node_vector *nodes, int idx,
                 fprintf(f, "  ret void\n");
             else
                 fprintf(f, "  ret %s undef\n", ret_llvm);
+        } else {
+            char val[32];
+            int reg_cnt = 0;
+            emit_expr_str(f, nodes, n->child, ret_llvm,
+                          &reg_cnt, val, sizeof(val));
+            fprintf(f, "  ret %s %s\n", ret_llvm, val);
         }
         break;
 

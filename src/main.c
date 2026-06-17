@@ -15,7 +15,7 @@
 
 int main(void)
 {
-    char src_raw[] = "fn main() -> int32 {\n"
+    char src_raw[] = "fn main(a: int32, b: int32) -> int32 {\n"
                      "    return 1*2+3\n"
                      "}\n";
 
