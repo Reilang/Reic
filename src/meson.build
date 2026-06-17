@@ -3,6 +3,7 @@ srcs = files(
   'lexer/lexer.c',
   'token/token.c',
   'diag/diag.c',
+  'type/type.c',
   'parser/parser.c',
   'ast/ast.c',
   'codegen/codegen.c',

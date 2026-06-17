@@ -12,24 +12,10 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "codegen/codegen.h"
+#include "type/type.h"
 
 #include <stdio.h>
 #include <string.h>
-
-static const char *rei2llvm(const char *name)
-{
-    if (!name) return "void";
-    if (strcmp(name, "void") == 0)  return "void";
-    if (strcmp(name, "int8") == 0)  return "i8";
-    if (strcmp(name, "int16") == 0) return "i16";
-    if (strcmp(name, "int32") == 0) return "i32";
-    if (strcmp(name, "int64") == 0) return "i64";
-    if (strcmp(name, "nat8") == 0)  return "i8";
-    if (strcmp(name, "nat16") == 0) return "i16";
-    if (strcmp(name, "nat32") == 0) return "i32";
-    if (strcmp(name, "nat64") == 0) return "i64";
-    return NULL;
-}
 
 static int find_rettype(node_vector *nodes, int func_idx)
 {
@@ -98,9 +84,8 @@ static void emit_params(FILE *f, node_vector *nodes, int func_idx)
         int var_idx = vd->child;
         int type_idx = nodes->data[var_idx].next;
         const char *pname = nodes->data[var_idx].sv;
-        const char *llvm_ty = rei2llvm(nodes->data[type_idx].sv);
-
-        if (!llvm_ty) llvm_ty = "i32";
+        type_tag ptag = (type_tag)nodes->data[type_idx].iv;
+        const char *llvm_ty = type_info_of(ptag)->llvm_name;
 
         if (!first) fprintf(f, ", ");
         fprintf(f, "%s %%%s", llvm_ty, pname);
@@ -131,16 +116,9 @@ int codegen_emit(node_vector *nodes, const char *output_path)
 
         const char *func_name = (name_idx >= 0)
             ? nodes->data[name_idx].sv : "???";
-        const char *ret_rei = (rettype_idx >= 0)
-            ? nodes->data[rettype_idx].sv : "void";
-        const char *ret_llvm = rei2llvm(ret_rei);
-
-        if (!ret_llvm) {
-            fprintf(stderr, "codegen: unknown return type '%s' in '%s'\n",
-                    ret_rei, func_name);
-            fclose(f);
-            return -1;
-        }
+        type_tag ret_tag = (rettype_idx >= 0)
+            ? (type_tag)nodes->data[rettype_idx].iv : TYPE_VOID;
+        const char *ret_llvm = type_info_of(ret_tag)->llvm_name;
 
         fprintf(f, "define %s @%s(", ret_llvm, func_name);
         emit_params(f, nodes, i);

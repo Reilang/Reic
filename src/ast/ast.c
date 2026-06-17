@@ -6,6 +6,7 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "ast/ast.h"
+#include "type/type.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,10 +51,15 @@ char *anode_print(anode node_)
     case ANODE_IDENT:
     case ANODE_IDENT_FUNC:
     case ANODE_IDENT_VAR:
-    case ANODE_IDENT_TYPE:
         snprintf(buf, 256, "%s '%s'  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  node_.sv ? node_.sv : "(null)",
+                 node_.child, node_.next);
+        break;
+    case ANODE_IDENT_TYPE:
+        snprintf(buf, 256, "%s '%s'  (child=%d, next=%d)",
+                 kind_name(node_.kind),
+                 type_info_of((type_tag)node_.iv)->name,
                  node_.child, node_.next);
         break;
     case ANODE_ILITERAL:

@@ -14,25 +14,11 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "parser/parser.h"
+#include "type/type.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-char BUILTIN_TYPES[64][64] = {"void", "int8", "int16", "int32", "int64",
-                                      "nat8", "nat16", "nat32", "nat64"};
-
-static int is_builtin_type(const char *name)
-{
-    int i;
-    for (i = 0; i < 64; i++) {
-        if (BUILTIN_TYPES[i][0] == '\0')
-            return 0;
-        if (strcmp(name, BUILTIN_TYPES[i]) == 0)
-            return 1;
-    }
-    return 0;
-}
 
 static token curtok(const parser *p)
 {
@@ -182,13 +168,17 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             return -1;
         }
         p->tokens.data[p->cursor].type = TK_IDENT_TYPE;
-        if (!is_builtin_type(tk.value.string)) {
-            diag_add(diags, LEVEL_ERROR, "unknown type name",
-                    tk.line, tk.column);
-            sync(p);
-            return -1;
+        {
+            type_tag tag = type_from_name(tk.value.string);
+            if (tag == TYPE_COUNT) {
+                diag_add(diags, LEVEL_ERROR, "unknown type name",
+                        tk.line, tk.column);
+                sync(p);
+                return -1;
+            }
+            ptype_idx = new_node(nodes, ANODE_IDENT_TYPE);
+            nodes->data[ptype_idx].iv = tag;
         }
-        ptype_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_TYPE);
         p->cursor++;
 
         vardecl_idx = new_node(nodes, ANODE_VARDECL);
@@ -239,13 +229,17 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         return -1;
     }
     p->tokens.data[p->cursor].type = TK_IDENT_TYPE;
-    if (!is_builtin_type(tk.value.string)) {
-        diag_add(diags, LEVEL_ERROR, "unknown type name",
-                tk.line, tk.column);
-        sync(p);
-        return -1;
+    {
+        type_tag tag = type_from_name(tk.value.string);
+        if (tag == TYPE_COUNT) {
+            diag_add(diags, LEVEL_ERROR, "unknown type name",
+                    tk.line, tk.column);
+            sync(p);
+            return -1;
+        }
+        rettype_idx = new_node(nodes, ANODE_IDENT_TYPE);
+        nodes->data[rettype_idx].iv = tag;
     }
-    rettype_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_TYPE);
     p->cursor++;
 
     skip_newlines(p);
