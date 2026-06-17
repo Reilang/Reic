@@ -16,7 +16,10 @@
 int main(void)
 {
     char src_raw[] = "fn main(a: int32, b: int32) -> int32 {\n"
-                     "    return 1*2+3\n"
+                     "    var x: int32 := 1\n"
+                     "    var y := x + 2\n"
+                     "    x := x + y\n"
+                     "    return x\n"
                      "}\n";
 
     lexer lexer_;

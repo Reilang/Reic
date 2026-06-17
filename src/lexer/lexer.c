@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-char KEYWORDS[64][64] = {"if", "for", "while", "return", "fn"};
+char KEYWORDS[64][64] = {"if", "for", "while", "return", "fn", "var"};
 
 static char nextch(lexer *l)
 {
@@ -97,12 +97,13 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '(' || cur == ')' || cur == '[' || cur == ']'
                 || cur == '{' || cur == '}' || cur == ',' || cur == '+'
                 || cur == '-' || cur == '*' || cur == '/' || cur == ':'
-                || cur == '<' || cur == '>') {
+                || cur == '=' || cur == '<' || cur == '>') {
                 switch (cur) {
                 case '+': emit_tok(l, tokens, TK_ADD,       sline, scol); break;
                 case '-': emit_tok(l, tokens, TK_MINUS,     sline, scol); break;
                 case '*': emit_tok(l, tokens, TK_STAR,      sline, scol); break;
                 case '/': emit_tok(l, tokens, TK_SLASH,     sline, scol); break;
+                case '=': emit_tok(l, tokens, TK_EQUAL,     sline, scol); break;
                 case '(':
                     emit_tok(l, tokens, TK_OPAREN, sline, scol);
                     l->paren_depth++;

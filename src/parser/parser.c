@@ -63,6 +63,8 @@ static int new_ident(node_vector *nodes, const char *name, anode_kind kind)
 static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
 static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags);
+static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags);
+static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_return(parser *p, node_vector *nodes, diag_vector *diags);
 
 /*
@@ -85,9 +87,14 @@ static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags)
     if (tk.type == TK_KEYWORD) {
         if (strcmp(tk.value.string, "fn") == 0)
             return parse_funcdef(p, nodes, diags);
+        if (strcmp(tk.value.string, "var") == 0)
+            return parse_vardecl(p, nodes, diags);
         if (strcmp(tk.value.string, "return") == 0)
             return parse_return(p, nodes, diags);
     }
+
+    if (tk.type == TK_IDENT || tk.type == TK_IDENT_VAR)
+        return parse_assign(p, nodes, diags);
 
     diag_add(diags, LEVEL_ERROR, "expected statement",
             tk.line, tk.column);
@@ -308,6 +315,137 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     }
 
     return func_idx;
+}
+
+static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    token tk;
+    int name_idx, type_idx, init_idx, vardecl_idx;
+    int prev;
+
+    p->cursor++; /* skip 'var' */
+
+    skip_newlines(p);
+    tk = curtok(p);
+    if (tk.type != TK_IDENT) {
+        diag_add(diags, LEVEL_ERROR, "expected variable name after 'var'",
+                tk.line, tk.column);
+        sync(p);
+        return -1;
+    }
+    p->tokens.data[p->cursor].type = TK_IDENT_VAR;
+    name_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
+    p->cursor++;
+
+    skip_newlines(p);
+    if (curtok(p).type != TK_COLON) {
+        diag_add(diags, LEVEL_ERROR, "expected ':' after variable name",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+    p->cursor++;
+    skip_newlines(p);
+
+    type_idx = -1;
+    init_idx = -1;
+
+    if (curtok(p).type == TK_EQUAL) {
+        /* var x := expr */
+        p->cursor++;
+        skip_newlines(p);
+        init_idx = parse_expr(p, nodes, diags, 0);
+        if (init_idx < 0) return -1;
+    } else if (curtok(p).type == TK_IDENT) {
+        /* var x: type */
+        tk = curtok(p);
+        {
+            type_tag tag = type_from_name(tk.value.string);
+            if (tag == TYPE_COUNT) {
+                diag_add(diags, LEVEL_ERROR, "unknown type name",
+                        tk.line, tk.column);
+                sync(p);
+                return -1;
+            }
+            p->tokens.data[p->cursor].type = TK_IDENT_TYPE;
+            type_idx = new_node(nodes, ANODE_IDENT_TYPE);
+            nodes->data[type_idx].iv = tag;
+        }
+        p->cursor++;
+
+        skip_newlines(p);
+        /* optionally: `:= expr` */
+        if (curtok(p).type == TK_COLON) {
+            p->cursor++;
+            skip_newlines(p);
+            if (curtok(p).type != TK_EQUAL) {
+                diag_add(diags, LEVEL_ERROR, "expected ':=' after type",
+                         curtok(p).line, curtok(p).column);
+                sync(p);
+                return -1;
+            }
+            p->cursor++;
+            skip_newlines(p);
+            init_idx = parse_expr(p, nodes, diags, 0);
+            if (init_idx < 0) return -1;
+        }
+    } else {
+        diag_add(diags, LEVEL_ERROR, "expected type name or ':='",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+
+    vardecl_idx = new_node(nodes, ANODE_VARDECL);
+    nodes->data[vardecl_idx].child = name_idx;
+
+    prev = name_idx;
+    if (type_idx >= 0) {
+        nodes->data[prev].next = type_idx;
+        prev = type_idx;
+    }
+    if (init_idx >= 0) {
+        nodes->data[prev].next = init_idx;
+    }
+
+    return vardecl_idx;
+}
+
+static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    token tk = curtok(p);
+    int var_idx, expr_idx, assign_idx;
+
+    p->tokens.data[p->cursor].type = TK_IDENT_VAR;
+    var_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
+    p->cursor++;
+
+    skip_newlines(p);
+    if (curtok(p).type != TK_COLON) {
+        diag_add(diags, LEVEL_ERROR, "expected ':=' in assignment",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+    p->cursor++;
+    skip_newlines(p);
+    if (curtok(p).type != TK_EQUAL) {
+        diag_add(diags, LEVEL_ERROR, "expected ':=' in assignment (missing '=' after ':')",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+    p->cursor++;
+    skip_newlines(p);
+
+    expr_idx = parse_expr(p, nodes, diags, 0);
+    if (expr_idx < 0) return -1;
+
+    assign_idx = new_node(nodes, ANODE_ASSIGN);
+    nodes->data[assign_idx].child = var_idx;
+    nodes->data[var_idx].next = expr_idx;
+
+    return assign_idx;
 }
 
 static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
