@@ -14,7 +14,7 @@
 
 int main(void)
 {
-    char src_raw[] = "fn main() -> voiid {\n"
+    char src_raw[] = "fn main() -> void {{\n"
                      "    return\n"
                      "}\n";
 

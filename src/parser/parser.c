@@ -277,6 +277,11 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
                     state_pop(&p->states);
                     continue;
                 }
+                if (tk.type == TK_OBRACE) {
+                    p->cursor++;
+                    state_push(&p->states, PSTATE_BLOCK);
+                    continue;
+                }
                 {
                     int sidx = parse_stmt(p, nodes, diags);
                     if (sidx >= 0) {
