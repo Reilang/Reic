@@ -84,7 +84,7 @@ static void sync(parser *p)
 {
     while (p->cursor < p->tokens.size) {
         tktype t = token_get(&p->tokens, p->cursor).type;
-        if (t == TK_NEXTLINE || t == TK_CBRACE || t == TK_EOF)
+        if (t == TK_NEXTLINE || t == TK_CBRACE || t == TK_OBRACE || t == TK_EOF)
             return;
         p->cursor++;
     }
@@ -329,6 +329,9 @@ void parse(parser *p, node_vector *nodes, diag_vector *diags)
                 diag_add(diags, LEVEL_ERROR, "unexpected '}'",
                         tk.line, tk.column);
                 p->cursor++;
+            } else if (tk.type == TK_OBRACE) {
+                p->cursor++;
+                state_push(&p->states, PSTATE_BLOCK);
             } else {
                 parse_stmt(p, nodes, diags);
             }
@@ -339,6 +342,9 @@ void parse(parser *p, node_vector *nodes, diag_vector *diags)
                 if (tk.type == TK_CBRACE) {
                     p->cursor++;
                     state_pop(&p->states);
+                } else if (tk.type == TK_OBRACE) {
+                    p->cursor++;
+                    state_push(&p->states, PSTATE_BLOCK);
                 } else {
                     parse_stmt(p, nodes, diags);
                 }
