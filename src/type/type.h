@@ -13,6 +13,8 @@
 #ifndef TYPE_TYPE_H
 #define TYPE_TYPE_H
 
+#include "collect/vector.h"
+
 #include <stdbool.h>
 
 /*
@@ -46,6 +48,9 @@ typedef struct {
     int width;              /* bit width (0 for void) */
     bool is_signed;         /* true for int*, false for nat* and void */
 } type_info;
+
+/* Type tag vector — used for function parameter lists, etc. */
+DECLARE_VECTOR(type_tag, type_tag)
 
 /* The builtin type table, indexed by type_tag. */
 extern const type_info TYPE_TABLE[];

@@ -173,6 +173,23 @@ static inline int next_pow2(int n)
         } \
     } \
     \
+    /* Lookup by string key — avoids constructing a full element as key. */ \
+    static inline type *name##_set_find_bykey(name##_set *s, const char *key) \
+    { \
+        uint64_t h; \
+        int idx; \
+        if (s->cap == 0) return NULL; \
+        h = hash_str(key); \
+        idx = (int)(h & (uint64_t)(s->cap - 1)); \
+        for (;;) { \
+            if (!s->occupied[idx]) \
+                return NULL; \
+            if (strcmp(s->entries[idx].key, key) == 0) \
+                return &s->entries[idx]; \
+            idx = (idx + 1) & (s->cap - 1); \
+        } \
+    } \
+    \
     static inline void name##_set_free(name##_set *s) \
     { \
         free(s->entries); \
