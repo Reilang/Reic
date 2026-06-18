@@ -14,6 +14,11 @@
 
 #include "ast/ast.h"
 
+/*
+ * Walks the AST and emits human-readable LLVM IR to output_path.
+ * Returns 0 on success, non-zero on failure (e.g. cannot open file).
+ * Only handles FUNCDECL, var decls, assignments, and return expressions.
+ */
 int codegen_emit(node_vector *nodes, const char *output_path);
 
 #endif /* CODEGEN_CODEGEN_H */

@@ -7,6 +7,14 @@
  * DECLARE_VECTOR(type, name) expands to a struct (name##_vector) and a set
  * of inline functions: new, push, pop, get, free.  The vector grows by
  * doubling when full.  All allocation failures are fatal (abort).
+ *
+ * Usage:
+ *   DECLARE_VECTOR(int, int)   // produces int_vector, int_new, int_push, ...
+ *   int_vector v;
+ *   int_new(&v, 16);           // initial capacity 16
+ *   int_push(&v, 42);
+ *   int x = int_get(&v, 0);
+ *   int_free(&v);
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #ifndef COLLECT_VECTOR_H
@@ -14,6 +22,17 @@
 
 #include <stdlib.h>
 
+/*
+ * Generates a type-safe dynamic array for the given element type.
+ *
+ * Produced symbols (suffix):
+ *   _vector   — struct { type *data; int size; int cap; }
+ *   _new      — allocate with initial capacity (aborts on OOM)
+ *   _push     — append element, doubling capacity as needed (aborts on OOM)
+ *   _pop      — remove and return last element (aborts if empty)
+ *   _get      — access element by index (aborts if out of bounds)
+ *   _free     — release heap memory, zero out metadata
+ */
 #define DECLARE_VECTOR(type, name) \
     typedef struct { \
         type *data; \

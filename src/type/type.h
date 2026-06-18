@@ -15,6 +15,10 @@
 
 #include <stdbool.h>
 
+/*
+ * Type tag enum.  Each tag indexes directly into TYPE_TABLE[].
+ * TYPE_COUNT serves as the "not found" sentinel from type_from_name().
+ */
 typedef enum {
     TYPE_VOID,
 
@@ -31,17 +35,31 @@ typedef enum {
     TYPE_COUNT
 } type_tag;
 
+/*
+ * Type metadata — single source of truth for each builtin type.
+ * All other modules consult this table instead of hardcoding type logic.
+ */
 typedef struct {
     type_tag tag;
-    const char *name;
-    const char *llvm_name;
-    int width;
-    bool is_signed;
+    const char *name;       /* Rei source name, e.g. "int32" */
+    const char *llvm_name;  /* LLVM IR type, e.g. "i32" */
+    int width;              /* bit width (0 for void) */
+    bool is_signed;         /* true for int*, false for nat* and void */
 } type_info;
 
+/* The builtin type table, indexed by type_tag. */
 extern const type_info TYPE_TABLE[];
 
-type_tag         type_from_name(const char *name);
+/*
+ * Looks up a type name (Rei source string).  Returns the corresponding tag,
+ * or TYPE_COUNT if the name is not a known builtin type.
+ */
+type_tag type_from_name(const char *name);
+
+/*
+ * Returns a pointer to the type_info for the given tag.
+ * Falls back to TYPE_VOID for out-of-range tags.
+ */
 const type_info *type_info_of(type_tag tag);
 
 #endif /* TYPE_TYPE_H */

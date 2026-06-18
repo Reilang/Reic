@@ -14,25 +14,36 @@
 
 #include "collect/vector.h"
 
+/* Severity level for a diagnostic. */
 typedef enum {
-    LEVEL_NOTE,
-    LEVEL_WARN,
-    LEVEL_ERROR
+    LEVEL_NOTE,    /* informational */
+    LEVEL_WARN,    /* warning — does not prevent codegen */
+    LEVEL_ERROR    /* error — codegen is skipped when errors are present */
 } level;
 
+/* A single diagnostic message with source location. */
 typedef struct {
-    char whaterr[256];
-    int line;
-    int column;
+    char whaterr[256];  /* human-readable message */
+    int line;            /* 1-based source line */
+    int column;          /* 0-based column */
     level level_;
 } diag;
 
 DECLARE_VECTOR(diag, diag)
 
+/*
+ * Appends a diagnostic to the vector.  msg is copied into whaterr[]
+ * (truncated at 255 characters).
+ */
 void diag_add(diag_vector *diags, level lv, const char *msg, int line, int column);
 
+/* Returns non-zero if any diagnostic in the vector has at least the given level. */
 int has_level(const diag_vector *diags, level lv);
 
+/*
+ * Allocates and returns a human-readable string for a single diagnostic.
+ * Caller must free() the result.
+ */
 char *diag_print(diag diag_);
 
 #endif /* DIAG_DIAG_H */

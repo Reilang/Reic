@@ -5,6 +5,13 @@
  * strbuf.h — Dynamic string buffer with printf-style append.
  *
  * Grows automatically.  Allocation failures abort.
+ *
+ * Typical usage:
+ *   strbuf sb;
+ *   strbuf_init(&sb, 256);
+ *   strbuf_add(&sb, "hello ");
+ *   strbuf_addf(&sb, "world %d", 42);
+ *   char *result = strbuf_detach(&sb);   // caller owns result, must free()
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #ifndef COLLECT_STRBUF_H
@@ -15,12 +22,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+ * Dynamic string buffer.  .data is always null-terminated.  Access .data
+ * directly for reading; use strbuf_add/strbuf_addf for writing.
+ */
 typedef struct {
-    char *data;
-    size_t len;
-    size_t cap;
+    char *data;     /* null-terminated buffer */
+    size_t len;     /* string length (excluding null terminator) */
+    size_t cap;     /* allocated capacity */
 } strbuf;
 
+/* Allocates the buffer with the given initial capacity.  Aborts on OOM. */
 static inline void strbuf_init(strbuf *sb, size_t initial)
 {
     sb->data = malloc(initial);
@@ -30,6 +42,7 @@ static inline void strbuf_init(strbuf *sb, size_t initial)
     sb->cap = initial;
 }
 
+/* Ensures the buffer has room for need additional bytes.  Aborts on OOM. */
 static inline void strbuf_grow(strbuf *sb, size_t need)
 {
     if (sb->len + need + 1 <= sb->cap)
@@ -41,6 +54,7 @@ static inline void strbuf_grow(strbuf *sb, size_t need)
     sb->cap = new_cap;
 }
 
+/* Appends a C string (including null terminator). */
 static inline void strbuf_add(strbuf *sb, const char *s)
 {
     size_t slen = strlen(s);
@@ -49,6 +63,7 @@ static inline void strbuf_add(strbuf *sb, const char *s)
     sb->len += slen;
 }
 
+/* Appends a printf-formatted string. */
 static inline void strbuf_addf(strbuf *sb, const char *fmt, ...)
 {
     va_list ap;
@@ -68,6 +83,7 @@ static inline void strbuf_addf(strbuf *sb, const char *fmt, ...)
     sb->len += (size_t)need;
 }
 
+/* Frees the internal buffer and resets the strbuf to empty. */
 static inline void strbuf_free(strbuf *sb)
 {
     free(sb->data);
@@ -76,7 +92,10 @@ static inline void strbuf_free(strbuf *sb)
     sb->cap = 0;
 }
 
-/* Returns the buffer and transfers ownership. Caller must free() the result. */
+/*
+ * Returns the buffer and transfers ownership.
+ * The strbuf is reset to empty; the caller must free() the returned pointer.
+ */
 static inline char *strbuf_detach(strbuf *sb)
 {
     char *data = sb->data;

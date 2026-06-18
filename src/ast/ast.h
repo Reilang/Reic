@@ -15,43 +15,62 @@
 #include "collect/vector.h"
 #include "token/token.h"
 
+/* Every syntactic construct the parser can produce. */
 typedef enum {
     ANODE_NONE,
 
-    ANODE_IDENT,
-    ANODE_IDENT_FUNC,
-    ANODE_IDENT_VAR,
-    ANODE_IDENT_TYPE,
-    ANODE_ILITERAL,
-    ANODE_FLITERAL,
-    ANODE_SLITERAL,
-    ANODE_CLITERAL,
+    /* identifiers (semantic role chosen by parser context) */
+    ANODE_IDENT,        /* unresolved reference (expression context) */
+    ANODE_IDENT_FUNC,   /* function name */
+    ANODE_IDENT_VAR,    /* variable name (declaration site) */
+    ANODE_IDENT_TYPE,   /* type name (resolved to type_tag in .iv) */
 
-    ANODE_BINOP,
-    ANODE_UNOP,
-    ANODE_ASSIGN, 
-    ANODE_CALL,  
-    ANODE_INDEX,
+    /* literals */
+    ANODE_ILITERAL,     /* integer: value in .iv */
+    ANODE_FLITERAL,     /* float:   value in .fv */
+    ANODE_SLITERAL,     /* string:  value in .sv */
+    ANODE_CLITERAL,     /* char:    value in .cv */
 
-    ANODE_BLOCK,
-    ANODE_IF,
-    ANODE_WHILE,
-    ANODE_LOOP,
-    ANODE_FOR,
-    ANODE_RETURN,
-    ANODE_MATCHARM,
+    /* expressions */
+    ANODE_BINOP,        /* binary operator: .op holds tktype */
+    ANODE_UNOP,         /* unary operator:  .op holds tktype */
+    ANODE_ASSIGN,       /* assignment: child=target, target.next=rhs */
+    ANODE_CALL,         /* function call */
+    ANODE_INDEX,        /* array/map index */
 
-    ANODE_FUNCDECL,
-    ANODE_VARDECL,
-    ANODE_TYPEDECL,
+    /* statements */
+    ANODE_BLOCK,        /* { } block: child=first stmt, stmts linked via .next */
+    ANODE_IF,           /* if (expr) { arms } — scrutinee via child, arms via next */
+    ANODE_WHILE,        /* while (cond) { body } — cond via child, body via next */
+    ANODE_LOOP,         /* loop { body } — body via child */
+    ANODE_FOR,          /* for in range — not yet implemented */
+    ANODE_RETURN,       /* return [expr] — expr via child */
+    ANODE_MATCHARM,     /* = pattern => body — pattern via child, body via next */
+
+    /* declarations */
+    ANODE_FUNCDECL,     /* fn name(params) -> rettype { body } */
+    ANODE_VARDECL,      /* var name[: type][:= init] */
+    ANODE_TYPEDECL,     /* type alias — not yet implemented */
 
     ANODE_COUNT
 } anode_kind;
 
+/*
+ * A single AST node.  child/next are integer indices into the flat node_vector
+ * (-1 means none).  The union field is interpreted according to .kind:
+ *
+ *   IDENT variants -> .sv  (allocated string)
+ *   ILITERAL       -> .iv  (int64_t)
+ *   FLITERAL       -> .fv  (double)
+ *   SLITERAL       -> .sv  (allocated string)
+ *   CLITERAL       -> .cv  (char)
+ *   IDENT_TYPE     -> .iv  (type_tag enum value)
+ *   BINOP / UNOP   -> .op  (tktype operator)
+ */
 typedef struct {
     anode_kind kind;
-    int child;
-    int next;
+    int child;  /* index of first child, -1 if none */
+    int next;   /* index of next sibling, -1 if none */
     union {
         int64_t iv;
         double fv;
@@ -63,7 +82,17 @@ typedef struct {
 
 DECLARE_VECTOR(anode, node)
 
+/*
+ * Allocates a one-line debug string for a single node.
+ * Caller must free() the result.
+ */
 char *anode_print(anode node_);
+
+/*
+ * Builds an ASCII tree representation of the entire AST (pass by value:
+ * node_vector is a small metadata struct, not mutated).
+ * Caller must free() the result.
+ */
 char *ast_print_tree(node_vector nodes);
 
 #endif /* AST_AST_H */
