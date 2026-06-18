@@ -39,7 +39,7 @@ static void emit_tok(lexer *l, token_vector *tokens, tktype type, int line, int 
     tk.type = type;
     tk.line = line;
     tk.column = col;
-    token_push(tokens, tk);
+    token_vec_push(tokens, tk);
 }
 
 static void emit_tok_str(lexer *l, token_vector *tokens, tktype type,
@@ -53,7 +53,7 @@ static void emit_tok_str(lexer *l, token_vector *tokens, tktype type,
     tk.value.string = strdup(str);
     if (!tk.value.string)
         abort();
-    token_push(tokens, tk);
+    token_vec_push(tokens, tk);
 }
 
 void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
@@ -213,7 +213,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 tk.line = sline;
                 tk.column = scol;
                 tk.value.integer = (int64_t)strtoll(l->readnow, NULL, 10);
-                token_push(tokens, tk);
+                token_vec_push(tokens, tk);
             }
             l->state = LSTATE_NORMAL;
             break;
@@ -235,7 +235,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                     tk.line = sline;
                     tk.column = scol;
                     tk.value.float_ = strtod(l->readnow, NULL);
-                    token_push(tokens, tk);
+                    token_vec_push(tokens, tk);
                 }
                 while (*(l->src_.raw) && *(l->src_.raw) != ' '
                        && *(l->src_.raw) != '\t' && *(l->src_.raw) != '\n'
@@ -260,7 +260,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                     tk.line = sline;
                     tk.column = scol;
                     tk.value.float_ = strtod(l->readnow, NULL);
-                    token_push(tokens, tk);
+                    token_vec_push(tokens, tk);
                 }
                 if (cur == '\n') {
                     l->src_.line++;
@@ -277,7 +277,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 tk.line = sline;
                 tk.column = scol;
                 tk.value.float_ = strtod(l->readnow, NULL);
-                token_push(tokens, tk);
+                token_vec_push(tokens, tk);
             }
             l->state = LSTATE_NORMAL;
             break;

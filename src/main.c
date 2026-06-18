@@ -44,16 +44,16 @@ int main(void)
 
     /* lex */
     lexer_.src_.raw = src_raw;
-    token_new(&tokens, 16);
-    diag_new(&diags, 4);
+    token_vec_new(&tokens, 16);
+    diag_vec_new(&diags, 4);
 
     tokenize(&lexer_, &tokens, &diags);
 
     /* parse */
     parser_.tokens = tokens;
     parser_.cursor = 0;
-    state_new(&parser_.states, 8);
-    node_new(&nodes, 16);
+    state_vec_new(&parser_.states, 8);
+    node_vec_new(&nodes, 16);
 
     parse(&parser_, &nodes, &diags);
 
@@ -94,10 +94,10 @@ int main(void)
 
     /* cleanup */
     /* In fact, OS will do this:-) */
-    state_free(&parser_.states);
-    node_free(&nodes);
-    token_free(&tokens);
-    diag_free(&diags);
+    state_vec_free(&parser_.states);
+    node_vec_free(&nodes);
+    token_vec_free(&tokens);
+    diag_vec_free(&diags);
 
     return EXIT_SUCCESS;
 }

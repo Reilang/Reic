@@ -9,12 +9,12 @@
  * doubling when full.  All allocation failures are fatal (abort).
  *
  * Usage:
- *   DECLARE_VECTOR(int, int)   // produces int_vector, int_new, int_push, ...
+ *   DECLARE_VECTOR(int, int)   // produces int_vector, int_vec_new, int_vec_push, ...
  *   int_vector v;
- *   int_new(&v, 16);           // initial capacity 16
- *   int_push(&v, 42);
- *   int x = int_get(&v, 0);
- *   int_free(&v);
+ *   int_vec_new(&v, 16);       // initial capacity 16
+ *   int_vec_push(&v, 42);
+ *   int x = int_vec_get(&v, 0);
+ *   int_vec_free(&v);
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #ifndef COLLECT_VECTOR_H
@@ -39,7 +39,7 @@
         int size; \
         int cap; \
     } name##_vector; \
-    static inline void name##_new(name##_vector *v, int cap) \
+    static inline void name##_vec_new(name##_vector *v, int cap) \
     { \
         v->data = (type*)malloc((size_t)cap * sizeof(type)); \
         if (!v->data) { \
@@ -48,35 +48,35 @@
         v->size = 0; \
         v->cap = cap; \
     } \
-    static inline void name##_push(name##_vector *v, type val) \
+    static inline void name##_vec_push(name##_vector *v, type val) \
     { \
         type *tmp; \
         if (v->size >= v->cap) { \
-            int ncap = v->cap == 0 ? 1 : v->cap * 2; \
-            tmp = (type*)realloc(v->data, (size_t)ncap * sizeof(type)); \
+            int new_cap = v->cap == 0 ? 1 : v->cap * 2; \
+            tmp = (type*)realloc(v->data, (size_t)new_cap * sizeof(type)); \
             if (!tmp) { \
                 abort(); \
             } \
             v->data = tmp; \
-            v->cap = ncap; \
+            v->cap = new_cap; \
         } \
         v->data[v->size++] = val; \
     } \
-    static inline type name##_pop(name##_vector *v) \
+    static inline type name##_vec_pop(name##_vector *v) \
     { \
         if (v->size == 0) { \
             abort(); \
         } \
         return v->data[--v->size]; \
     } \
-    static inline type name##_get(const name##_vector *v, int idx) \
+    static inline type name##_vec_get(const name##_vector *v, int idx) \
     { \
         if (idx < 0 || idx >= v->size) { \
             abort(); \
         } \
         return v->data[idx]; \
     } \
-    static inline void name##_free(name##_vector *v) \
+    static inline void name##_vec_free(name##_vector *v) \
     { \
         free(v->data); \
         v->data = NULL; \

@@ -20,7 +20,7 @@ void diag_add(diag_vector *diags, level lv, const char *msg, int line, int colum
     d.line = line;
     d.column = column;
     d.level_ = lv;
-    diag_push(diags, d);
+    diag_vec_push(diags, d);
 }
 
 int has_level(const diag_vector *diags, level lv)

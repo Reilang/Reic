@@ -27,19 +27,19 @@ static token curtok(const parser *p)
         eof.type = TK_EOF;
         return eof;
     }
-    return token_get(&p->tokens, p->cursor);
+    return token_vec_get(&p->tokens, p->cursor);
 }
 
 static int at_eof(const parser *p)
 {
     return p->cursor >= p->tokens.size
-        || token_get(&p->tokens, p->cursor).type == TK_EOF;
+        || token_vec_get(&p->tokens, p->cursor).type == TK_EOF;
 }
 
 static void skip_newlines(parser *p)
 {
     while (p->cursor < p->tokens.size
-           && token_get(&p->tokens, p->cursor).type == TK_NEXTLINE)
+           && token_vec_get(&p->tokens, p->cursor).type == TK_NEXTLINE)
         p->cursor++;
 }
 
@@ -49,7 +49,7 @@ static int new_node(node_vector *nodes, anode_kind kind)
     n.kind = kind;
     n.child = -1;
     n.next = -1;
-    node_push(nodes, n);
+    node_vec_push(nodes, n);
     return nodes->size - 1;
 }
 
@@ -77,7 +77,7 @@ static int parse_return(parser *p, node_vector *nodes, diag_vector *diags);
 static void sync(parser *p)
 {
     while (p->cursor < p->tokens.size) {
-        tktype t = token_get(&p->tokens, p->cursor).type;
+        tktype t = token_vec_get(&p->tokens, p->cursor).type;
         if (t == TK_NEXTLINE || t == TK_CBRACE || t == TK_OBRACE || t == TK_EOF)
             return;
         p->cursor++;
@@ -259,7 +259,7 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     }
     p->cursor++;
 
-    state_push(&p->states, PSTATE_BLOCK);
+    state_vec_push(&p->states, PSTATE_BLOCK);
     initial_sz = p->states.size;
     {
         int block_idx = new_node(nodes, ANODE_BLOCK);
@@ -274,16 +274,16 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
                 break;
             }
 
-            if (state_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
+            if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
                 tk = curtok(p);
                 if (tk.type == TK_CBRACE) {
                     p->cursor++;
-                    state_pop(&p->states);
+                    state_vec_pop(&p->states);
                     continue;
                 }
                 if (tk.type == TK_OBRACE) {
                     p->cursor++;
-                    state_push(&p->states, PSTATE_BLOCK);
+                    state_vec_push(&p->states, PSTATE_BLOCK);
                     continue;
                 }
                 {
@@ -701,7 +701,7 @@ static int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
     }
     p->cursor++;
 
-    state_push(&p->states, PSTATE_BLOCK);
+    state_vec_push(&p->states, PSTATE_BLOCK);
     initial_sz = p->states.size;
     {
         block_idx = new_node(nodes, ANODE_BLOCK);
@@ -715,16 +715,16 @@ static int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
                 break;
             }
 
-            if (state_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
+            if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
                 token tk = curtok(p);
                 if (tk.type == TK_CBRACE) {
                     p->cursor++;
-                    state_pop(&p->states);
+                    state_vec_pop(&p->states);
                     continue;
                 }
                 if (tk.type == TK_OBRACE) {
                     p->cursor++;
-                    state_push(&p->states, PSTATE_BLOCK);
+                    state_vec_push(&p->states, PSTATE_BLOCK);
                     continue;
                 }
                 {
@@ -768,7 +768,7 @@ static int parse_loop(parser *p, node_vector *nodes, diag_vector *diags)
     }
     p->cursor++;
 
-    state_push(&p->states, PSTATE_BLOCK);
+    state_vec_push(&p->states, PSTATE_BLOCK);
     initial_sz = p->states.size;
     {
         block_idx = new_node(nodes, ANODE_BLOCK);
@@ -782,16 +782,16 @@ static int parse_loop(parser *p, node_vector *nodes, diag_vector *diags)
                 break;
             }
 
-            if (state_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
+            if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
                 token tk = curtok(p);
                 if (tk.type == TK_CBRACE) {
                     p->cursor++;
-                    state_pop(&p->states);
+                    state_vec_pop(&p->states);
                     continue;
                 }
                 if (tk.type == TK_OBRACE) {
                     p->cursor++;
-                    state_push(&p->states, PSTATE_BLOCK);
+                    state_vec_push(&p->states, PSTATE_BLOCK);
                     continue;
                 }
                 {
@@ -831,20 +831,20 @@ void parse(parser *p, node_vector *nodes, diag_vector *diags)
                 p->cursor++;
             } else if (tk.type == TK_OBRACE) {
                 p->cursor++;
-                state_push(&p->states, PSTATE_BLOCK);
+                state_vec_push(&p->states, PSTATE_BLOCK);
             } else {
                 parse_stmt(p, nodes, diags);
             }
         } else {
-            switch (state_get(&p->states, p->states.size - 1)) {
+            switch (state_vec_get(&p->states, p->states.size - 1)) {
             case PSTATE_BLOCK: {
                 token tk = curtok(p);
                 if (tk.type == TK_CBRACE) {
                     p->cursor++;
-                    state_pop(&p->states);
+                    state_vec_pop(&p->states);
                 } else if (tk.type == TK_OBRACE) {
                     p->cursor++;
-                    state_push(&p->states, PSTATE_BLOCK);
+                    state_vec_push(&p->states, PSTATE_BLOCK);
                 } else {
                     parse_stmt(p, nodes, diags);
                 }
