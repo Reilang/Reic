@@ -9,7 +9,7 @@ srcs = files(
   'codegen/codegen.c',
 )
 
-executable('reilang',
+executable('reic',
   srcs,
   include_directories: include_directories('.'),
   install: true,
