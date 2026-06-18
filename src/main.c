@@ -9,6 +9,7 @@
 #include "codegen/codegen.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
+#include "sema/sema.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,6 +82,18 @@ int main(void)
         if (tree) {
             printf("%s", tree);
             free(tree);
+        }
+    }
+
+    /* semantic analysis */
+    sema_check(nodes, &diags);
+
+    printf("\nsema diagnostics (%d):\n", diags.size);
+    for (i = 0; i < diags.size; i++) {
+        char *s = diag_print(diags.data[i]);
+        if (s) {
+            printf("  %s\n", s);
+            free(s);
         }
     }
 

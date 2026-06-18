@@ -6,6 +6,7 @@ srcs = files(
   'type/type.c',
   'parser/parser.c',
   'ast/ast.c',
+  'sema/sema.c',
   'codegen/codegen.c',
 )
 

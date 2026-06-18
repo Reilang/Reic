@@ -103,6 +103,8 @@ static inline int next_pow2(int n)
         s->eq_fn = eq_fn; \
     } \
     \
+    static inline type *name##_set_insert(name##_set *s, type val); \
+    \
     static inline void name##_set_rehash(name##_set *s, int new_cap) \
     { \
         type *old_entries = s->entries; \
