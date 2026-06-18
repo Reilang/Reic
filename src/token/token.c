@@ -26,18 +26,6 @@ char *token_print(token token_)
         snprintf(buffer, 256, "[%d:%d] identifier: %s", token_.line, token_.column,
                 token_.value.string);
         break;
-    case TK_IDENT_FUNC:
-        snprintf(buffer, 256, "[%d:%d] function-name: %s", token_.line, token_.column,
-                token_.value.string);
-        break;
-    case TK_IDENT_VAR:
-        snprintf(buffer, 256, "[%d:%d] variable-name: %s", token_.line, token_.column,
-                token_.value.string);
-        break;
-    case TK_IDENT_TYPE:
-        snprintf(buffer, 256, "[%d:%d] type-name: %s", token_.line, token_.column,
-                token_.value.string);
-        break;
     case TK_KEYWORD:
         snprintf(buffer, 256, "[%d:%d] keyword: %s", token_.line, token_.column,
                 token_.value.string);

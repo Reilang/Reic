@@ -97,7 +97,7 @@ static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags)
             return parse_return(p, nodes, diags);
     }
 
-    if (tk.type == TK_IDENT || tk.type == TK_IDENT_VAR)
+    if (tk.type == TK_IDENT)
         return parse_assign(p, nodes, diags);
 
     diag_add(diags, LEVEL_ERROR, "expected statement",
@@ -125,7 +125,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         sync(p);
         return -1;
     }
-    p->tokens.data[p->cursor].type = TK_IDENT_FUNC;
     name_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_FUNC);
     p->cursor++;
 
@@ -155,7 +154,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             sync(p);
             return -1;
         }
-        p->tokens.data[p->cursor].type = TK_IDENT_VAR;
         pname_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
         p->cursor++;
 
@@ -174,7 +172,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             sync(p);
             return -1;
         }
-        p->tokens.data[p->cursor].type = TK_IDENT_TYPE;
         {
             type_tag tag = type_from_name(tk.value.string);
             if (tag == TYPE_COUNT) {
@@ -234,7 +231,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         sync(p);
         return -1;
     }
-    p->tokens.data[p->cursor].type = TK_IDENT_TYPE;
     {
         type_tag tag = type_from_name(tk.value.string);
         if (tag == TYPE_COUNT) {
@@ -332,7 +328,7 @@ static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
         sync(p);
         return -1;
     }
-    p->tokens.data[p->cursor].type = TK_IDENT_VAR;
+
     name_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
     p->cursor++;
 
@@ -366,7 +362,6 @@ static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
                 sync(p);
                 return -1;
             }
-            p->tokens.data[p->cursor].type = TK_IDENT_TYPE;
             type_idx = new_node(nodes, ANODE_IDENT_TYPE);
             nodes->data[type_idx].iv = tag;
         }
@@ -415,7 +410,7 @@ static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
     token tk = curtok(p);
     int var_idx, expr_idx, assign_idx;
 
-    p->tokens.data[p->cursor].type = TK_IDENT_VAR;
+
     var_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
     p->cursor++;
 
@@ -466,7 +461,7 @@ static int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
         p->cursor++;
         return idx;
     }
-    if (tk.type == TK_IDENT || tk.type == TK_IDENT_VAR) {
+    if (tk.type == TK_IDENT) {
         int idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
         p->cursor++;
         return idx;
