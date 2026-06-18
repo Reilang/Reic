@@ -26,6 +26,12 @@ int main(void)
                      "        = 20 =>\n"
                      "            return y\n"
                      "    }\n"
+                     "    while (x < 100) {\n"
+                     "        x := x + 1\n"
+                     "    }\n"
+                     "    loop {\n"
+                     "        y := y - 1\n"
+                     "    }\n"
                      "    return x\n"
                      "}\n";
 

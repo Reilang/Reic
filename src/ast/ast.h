@@ -36,6 +36,7 @@ typedef enum {
     ANODE_BLOCK,
     ANODE_IF,
     ANODE_WHILE,
+    ANODE_LOOP,
     ANODE_FOR,
     ANODE_RETURN,
     ANODE_MATCHARM,

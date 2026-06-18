@@ -34,6 +34,7 @@ static const char *kind_name(anode_kind kind)
     case ANODE_BLOCK:      return "BLOCK";
     case ANODE_IF:         return "IF";
     case ANODE_WHILE:      return "WHILE";
+    case ANODE_LOOP:       return "LOOP";
     case ANODE_FOR:        return "FOR";
     case ANODE_RETURN:     return "RETURN";
     case ANODE_MATCHARM:   return "MATCHARM";
@@ -102,11 +103,13 @@ char *anode_print(anode node_)
 static const char *binop_symbol(tktype op)
 {
     switch (op) {
-    case TK_ADD:   return "+";
-    case TK_MINUS: return "-";
-    case TK_STAR:  return "*";
-    case TK_SLASH: return "/";
-    default:       return "?";
+    case TK_ADD:        return "+";
+    case TK_MINUS:      return "-";
+    case TK_STAR:       return "*";
+    case TK_SLASH:      return "/";
+    case TK_OABRACKET:  return "<";
+    case TK_CABRACKET:  return ">";
+    default:            return "?";
     }
 }
 

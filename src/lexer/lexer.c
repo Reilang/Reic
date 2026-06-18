@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-char KEYWORDS[64][64] = {"if", "for", "while", "return", "fn", "var"};
+char KEYWORDS[64][64] = {"if", "for", "while", "loop", "return", "fn", "var"};
 
 static char nextch(lexer *l)
 {
