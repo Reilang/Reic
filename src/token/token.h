@@ -41,8 +41,8 @@ typedef enum {
     TK_OBRACE,
     TK_CBRACE,
     TK_COMMA,
-    TK_OABRACKET,
-    TK_CABRACKET,
+    TK_OABRACKET, /* < */
+    TK_CABRACKET, /* > */
 
     TK_COLON,
 

@@ -19,6 +19,13 @@ int main(void)
                      "    var x: int32 := 1\n"
                      "    var y := x + 2\n"
                      "    x := x + y\n"
+                     "    if (x) {\n"
+                     "        = 10 =>\n"
+                     "            var z := 42\n"
+                     "            x := z\n"
+                     "        = 20 =>\n"
+                     "            return y\n"
+                     "    }\n"
                      "    return x\n"
                      "}\n";
 

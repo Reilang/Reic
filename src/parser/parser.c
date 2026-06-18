@@ -60,11 +60,13 @@ static int new_ident(node_vector *nodes, const char *name, anode_kind kind)
     return idx;
 }
 
+/* stupid forward declaration */
 static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
 static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags);
+static int parse_if(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_return(parser *p, node_vector *nodes, diag_vector *diags);
 
 /*
@@ -89,6 +91,8 @@ static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags)
             return parse_funcdef(p, nodes, diags);
         if (strcmp(tk.value.string, "var") == 0)
             return parse_vardecl(p, nodes, diags);
+        if (strcmp(tk.value.string, "if") == 0)
+            return parse_if(p, nodes, diags);
         if (strcmp(tk.value.string, "return") == 0)
             return parse_return(p, nodes, diags);
     }
@@ -134,7 +138,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     }
     p->cursor++;
 
-    skip_newlines(p);
     while (curtok(p).type != TK_CPAREN) {
         int pname_idx, ptype_idx, vardecl_idx;
 
@@ -145,7 +148,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             return -1;
         }
 
-        skip_newlines(p);
         tk = curtok(p);
         if (tk.type != TK_IDENT) {
             diag_add(diags, LEVEL_ERROR, "expected parameter name",
@@ -157,7 +159,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         pname_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
         p->cursor++;
 
-        skip_newlines(p);
         if (curtok(p).type != TK_COLON) {
             diag_add(diags, LEVEL_ERROR, "expected ':' after parameter name",
                      curtok(p).line, curtok(p).column);
@@ -166,7 +167,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         }
         p->cursor++;
 
-        skip_newlines(p);
         tk = curtok(p);
         if (tk.type != TK_IDENT) {
             diag_add(diags, LEVEL_ERROR, "expected type name",
@@ -198,7 +198,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             nodes->data[param_tail].next = vardecl_idx;
         param_tail = vardecl_idx;
 
-        skip_newlines(p);
         if (curtok(p).type == TK_COMMA) {
             p->cursor++;
         } else if (curtok(p).type != TK_CPAREN) {
@@ -538,6 +537,127 @@ static int parse_return(parser *p, node_vector *nodes, diag_vector *diags)
     if (expr_idx >= 0)
         nodes->data[ret_idx].child = expr_idx;
     return ret_idx;
+}
+
+static int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    token tk;
+    int scrutinee_idx, if_idx;
+    int arm_head = -1;
+    int arm_tail = -1;
+
+    p->cursor++; /* skip 'if' */
+
+    skip_newlines(p);
+    if (curtok(p).type != TK_OPAREN) {
+        diag_add(diags, LEVEL_ERROR, "expected '(' after 'if'",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+    p->cursor++;
+
+    scrutinee_idx = parse_expr(p, nodes, diags, 0);
+    if (scrutinee_idx < 0) return -1;
+
+    if (curtok(p).type != TK_CPAREN) {
+        diag_add(diags, LEVEL_ERROR, "expected ')' after if condition",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+    p->cursor++;
+
+    skip_newlines(p);
+    if (curtok(p).type != TK_OBRACE) {
+        diag_add(diags, LEVEL_ERROR, "expected '{' before if body",
+                 curtok(p).line, curtok(p).column);
+        sync(p);
+        return -1;
+    }
+    p->cursor++;
+
+    while (curtok(p).type != TK_CBRACE && !at_eof(p)) {
+        int pattern_idx, arm_idx;
+        int body_head = -1;
+        int body_tail = -1;
+
+        skip_newlines(p);
+        tk = curtok(p);
+
+        if (tk.type == TK_CBRACE)
+            break;
+
+        if (tk.type != TK_EQUAL) {
+            diag_add(diags, LEVEL_ERROR, "expected '=' to start match arm",
+                     tk.line, tk.column);
+            sync(p);
+            if (arm_head < 0) return -1;
+            break;
+        }
+        p->cursor++;
+
+        skip_newlines(p);
+        pattern_idx = parse_expr(p, nodes, diags, 0);
+        if (pattern_idx < 0) return -1;
+
+        skip_newlines(p);
+        /* '=>' */
+        if (curtok(p).type != TK_EQUAL) {
+            diag_add(diags, LEVEL_ERROR, "expected '=>' after match pattern",
+                     curtok(p).line, curtok(p).column);
+            sync(p);
+            return -1;
+        }
+        p->cursor++;
+        skip_newlines(p);
+        if (curtok(p).type != TK_CABRACKET) {
+            diag_add(diags, LEVEL_ERROR,
+                     "expected '=>' (missing '>' after '=')",
+                     curtok(p).line, curtok(p).column);
+            sync(p);
+            return -1;
+        }
+        p->cursor++;
+
+        /* arm body: stmts until next '=' or '}' */
+        for (;;) {
+            skip_newlines(p);
+            tk = curtok(p);
+            if (tk.type == TK_EQUAL || tk.type == TK_CBRACE || at_eof(p))
+                break;
+
+            int sidx = parse_stmt(p, nodes, diags);
+            if (sidx >= 0) {
+                if (body_head < 0)
+                    body_head = sidx;
+                else
+                    nodes->data[body_tail].next = sidx;
+                body_tail = sidx;
+            }
+        }
+
+        arm_idx = new_node(nodes, ANODE_MATCHARM);
+        nodes->data[arm_idx].child = pattern_idx;
+        if (body_head >= 0)
+            nodes->data[pattern_idx].next = body_head;
+
+        if (arm_head < 0)
+            arm_head = arm_idx;
+        else
+            nodes->data[arm_tail].next = arm_idx;
+        arm_tail = arm_idx;
+    }
+
+    if (curtok(p).type == TK_CBRACE)
+        p->cursor++;
+
+    if_idx = new_node(nodes, ANODE_IF);
+    nodes->data[if_idx].child = scrutinee_idx;
+    if (arm_head >= 0)
+        nodes->data[scrutinee_idx].next = arm_head;
+
+    return if_idx;
 }
 
 void parse(parser *p, node_vector *nodes, diag_vector *diags)
