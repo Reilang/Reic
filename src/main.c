@@ -7,6 +7,8 @@
  */
 #include "ast/ast.h"
 #include "codegen/codegen.h"
+#include "hir/hir.h"
+#include "hir/hir_lower.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "sema/sema.h"
@@ -86,7 +88,7 @@ int main(void)
     }
 
     /* semantic analysis */
-    sema_check(nodes, &diags);
+    sema_vector annotations = sema_check(nodes, &diags);
 
     printf("\nsema diagnostics (%d):\n", diags.size);
     for (i = 0; i < diags.size; i++) {
@@ -94,6 +96,17 @@ int main(void)
         if (s) {
             printf("  %s\n", s);
             free(s);
+        }
+    }
+
+    /* HIR lowering */
+    hir_vector hir = hir_lower(nodes, &annotations);
+    printf("\nHIR:\n");
+    {
+        char *tree = hir_print_tree(hir);
+        if (tree) {
+            printf("%s", tree);
+            free(tree);
         }
     }
 
@@ -111,6 +124,8 @@ int main(void)
     node_vec_free(&nodes);
     token_vec_free(&tokens);
     diag_vec_free(&diags);
+    sema_vec_free(&annotations);
+    hir_vec_free(&hir);
 
     return EXIT_SUCCESS;
 }

@@ -7,6 +7,7 @@ srcs = files(
   'parser/parser.c',
   'ast/ast.c',
   'hir/hir.c',
+  'hir/hir_lower.c',
   'sema/sema.c',
   'codegen/codegen.c',
 )

@@ -8,17 +8,20 @@
  * parent.  Lookup only searches the top scope.  On scope exit, inherited
  * entries propagate is_used / is_assigned back to the parent, then local
  * entries are checked for unused warnings.
+ *
+ * Produces a sema_vector (1:1 with AST nodes) carrying resolved type and
+ * declaration references for downstream HIR lowering.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #include "sema/sema.h"
-
-#include "collect/hashset.h"
 
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "collect/hashset.h"
 
 static uint64_t sym_hash(sym_entry e)
 {
@@ -45,8 +48,7 @@ static int cur_depth(const sym_set_vector *stack)
     return stack->size - 1;
 }
 
-/* Deep copy a sym_set.  Allocates new entries / occupied arrays and copies
- * param_types vectors for function symbols. */
+/* Deep copy a sym_set. */
 static void sym_set_copy(sym_set *dst, const sym_set *src)
 {
     int i;
@@ -93,9 +95,8 @@ static void diag_fmt(diag_vector *diags, level lv, int line, int col,
     diag_add(diags, lv, buf, line, col);
 }
 
-/* Two types are compatible in an expression if they share the same signedness
- * family (both signed or both unsigned).  Returns the wider type, or TYPE_COUNT
- * if they are incompatible (cross-family or involving void). */
+/* Return the wider type if a and b share the same signedness family,
+ * or TYPE_COUNT if they are incompatible. */
 static type_tag common_type(type_tag a, type_tag b)
 {
     const type_info *ai, *bi;
@@ -111,8 +112,7 @@ static type_tag common_type(type_tag a, type_tag b)
     return (ai->width >= bi->width) ? a : b;
 }
 
-/* Can src be assigned to a location of type dst without explicit cast?
- * Returns true for same type or implicit widening (same family, dst wider). */
+/* Can src be assigned to a location of type dst without explicit cast? */
 static bool assignable_to(type_tag dst, type_tag src)
 {
     const type_info *di, *si;
@@ -130,26 +130,25 @@ static bool assignable_to(type_tag dst, type_tag src)
 
 /* forward declarations */
 static void sema_block(node_vector nodes, sym_set_vector *stack,
-                       int block_idx, diag_vector *diags);
+                       int block_idx, diag_vector *diags,
+                       sema_vector *annot);
 static void sema_stmt(node_vector nodes, sym_set_vector *stack, int idx,
-                      diag_vector *diags);
+                      diag_vector *diags, sema_vector *annot);
 static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
-                            diag_vector *diags);
+                          diag_vector *diags, sema_vector *annot);
 static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
-                         diag_vector *diags);
+                         diag_vector *diags, sema_vector *annot);
 static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
-                        diag_vector *diags);
+                        diag_vector *diags, sema_vector *annot);
 static void sema_if(node_vector nodes, sym_set_vector *stack, int idx,
-                    diag_vector *diags);
+                    diag_vector *diags, sema_vector *annot);
 static void sema_while(node_vector nodes, sym_set_vector *stack, int idx,
-                       diag_vector *diags);
+                       diag_vector *diags, sema_vector *annot);
 static void sema_loop(node_vector nodes, sym_set_vector *stack, int idx,
-                      diag_vector *diags);
+                      diag_vector *diags, sema_vector *annot);
 static void sema_return(node_vector nodes, sym_set_vector *stack, int idx,
-                        diag_vector *diags);
+                        diag_vector *diags, sema_vector *annot);
 
-/* Propagate is_used / is_assigned from inner scope entries back to parent,
- * then check unused for locally-declared entries. */
 static void scope_exit(sym_set_vector *stack, diag_vector *diags)
 {
     sym_set *inner = cur_scope(stack);
@@ -169,7 +168,6 @@ static void scope_exit(sym_set_vector *stack, diag_vector *diags)
             continue;
 
         if (e->decl_depth < depth) {
-            /* Inherited — propagate flags back to parent. */
             if (parent) {
                 sym_entry *pe =
                     sym_set_find_bykey(parent, e->key);
@@ -179,7 +177,6 @@ static void scope_exit(sym_set_vector *stack, diag_vector *diags)
                 }
             }
         } else {
-            /* Locally declared — check unused. */
             if (!e->var.is_used)
                 diag_fmt(diags, LEVEL_WARN, 0, 0,
                          "unused variable '%s'", e->key);
@@ -187,11 +184,19 @@ static void scope_exit(sym_set_vector *stack, diag_vector *diags)
     }
 }
 
-void sema_check(node_vector nodes, diag_vector *diags)
+sema_vector sema_check(node_vector nodes, diag_vector *diags)
 {
     int i;
     sym_set_vector stack;
+    sema_vector annot;
     sym_set_vec_new(&stack, 8);
+
+    /* Pre-allocate annotation vector: one entry per AST node. */
+    sema_vec_new(&annot, nodes.size);
+    for (i = 0; i < nodes.size; i++) {
+        sema_annot a = { .type = TYPE_VOID, .decl_idx = -1 };
+        sema_vec_push(&annot, a);
+    }
 
     for (i = 0; i < nodes.size; i++) {
         const anode *n = &nodes.data[i];
@@ -202,6 +207,15 @@ void sema_check(node_vector nodes, diag_vector *diags)
         const anode *name_n = &nodes.data[n->child];
         sym_set func_scope;
         sym_set_new(&func_scope, 16, sym_hash, sym_eq);
+
+        /* Find return type (skip params first). */
+        {
+            int cur = name_n->next;
+            while (cur >= 0 && nodes.data[cur].kind == ANODE_VARDECL)
+                cur = nodes.data[cur].next;
+            if (cur >= 0 && nodes.data[cur].kind == ANODE_IDENT_TYPE)
+                annot.data[i].type = (type_tag)nodes.data[cur].iv;
+        }
 
         /* Add parameters to function scope. */
         {
@@ -218,7 +232,11 @@ void sema_check(node_vector nodes, diag_vector *diags)
                 entry.var.is_assigned = true;
                 entry.var.is_used = false;
                 entry.var.type = (type_tag)nodes.data[type_idx].iv;
+                entry.var.ast_idx = cur;
                 sym_set_insert(&func_scope, entry);
+
+                /* Annotate parameter VARDECL. */
+                annot.data[cur].type = (type_tag)nodes.data[type_idx].iv;
 
                 cur = vd->next;
             }
@@ -226,8 +244,7 @@ void sema_check(node_vector nodes, diag_vector *diags)
 
         sym_set_vec_push(&stack, func_scope);
 
-        /* Process function body statements in the function scope itself
-         * (no new scope push — params and body are the same scope). */
+        /* Process function body block. */
         {
             int cur = name_n->next;
             int block_idx = -1;
@@ -241,7 +258,7 @@ void sema_check(node_vector nodes, diag_vector *diags)
             if (block_idx >= 0) {
                 int stmt = nodes.data[block_idx].child;
                 while (stmt >= 0) {
-                    sema_stmt(nodes, &stack, stmt, diags);
+                    sema_stmt(nodes, &stack, stmt, diags, &annot);
                     stmt = nodes.data[stmt].next;
                 }
             }
@@ -268,10 +285,12 @@ void sema_check(node_vector nodes, diag_vector *diags)
     }
 
     sym_set_vec_free(&stack);
+    return annot;
 }
 
 static void sema_block(node_vector nodes, sym_set_vector *stack,
-                       int block_idx, diag_vector *diags)
+                       int block_idx, diag_vector *diags,
+                       sema_vector *annot)
 {
     sym_set new_scope;
     sym_set_copy(&new_scope, cur_scope(stack));
@@ -279,7 +298,7 @@ static void sema_block(node_vector nodes, sym_set_vector *stack,
 
     int cur = nodes.data[block_idx].child;
     while (cur >= 0) {
-        sema_stmt(nodes, stack, cur, diags);
+        sema_stmt(nodes, stack, cur, diags, annot);
         cur = nodes.data[cur].next;
     }
 
@@ -292,31 +311,31 @@ static void sema_block(node_vector nodes, sym_set_vector *stack,
 }
 
 static void sema_stmt(node_vector nodes, sym_set_vector *stack, int idx,
-                      diag_vector *diags)
+                      diag_vector *diags, sema_vector *annot)
 {
     anode *n = &nodes.data[idx];
 
     switch (n->kind) {
     case ANODE_BLOCK:
-        sema_block(nodes, stack, idx, diags);
+        sema_block(nodes, stack, idx, diags, annot);
         break;
     case ANODE_VARDECL:
-        sema_vardecl(nodes, stack, idx, diags);
+        sema_vardecl(nodes, stack, idx, diags, annot);
         break;
     case ANODE_ASSIGN:
-        sema_assign(nodes, stack, idx, diags);
+        sema_assign(nodes, stack, idx, diags, annot);
         break;
     case ANODE_IF:
-        sema_if(nodes, stack, idx, diags);
+        sema_if(nodes, stack, idx, diags, annot);
         break;
     case ANODE_WHILE:
-        sema_while(nodes, stack, idx, diags);
+        sema_while(nodes, stack, idx, diags, annot);
         break;
     case ANODE_LOOP:
-        sema_loop(nodes, stack, idx, diags);
+        sema_loop(nodes, stack, idx, diags, annot);
         break;
     case ANODE_RETURN:
-        sema_return(nodes, stack, idx, diags);
+        sema_return(nodes, stack, idx, diags, annot);
         break;
     default:
         break;
@@ -324,7 +343,7 @@ static void sema_stmt(node_vector nodes, sym_set_vector *stack, int idx,
 }
 
 static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
-                            diag_vector *diags)
+                          diag_vector *diags, sema_vector *annot)
 {
     const anode *n;
 
@@ -346,19 +365,22 @@ static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
         if (!found->var.is_assigned)
             diag_fmt(diags, LEVEL_WARN, 0, 0,
                      "variable '%s' used before assignment", n->sv);
+        annot->data[idx].type = found->var.type;
+        annot->data[idx].decl_idx = found->var.ast_idx;
         return found->var.type;
     }
     case ANODE_ILITERAL:
+        annot->data[idx].type = TYPE_I32;
         return TYPE_I32;
     case ANODE_FLITERAL:
         return TYPE_VOID;
     case ANODE_BINOP: {
-        type_tag lt = sema_expr(nodes, stack, n->child, diags);
+        type_tag lt = sema_expr(nodes, stack, n->child, diags, annot);
         type_tag rt = TYPE_VOID;
         type_tag common;
         if (n->child >= 0)
             rt = sema_expr(nodes, stack,
-                          nodes.data[n->child].next, diags);
+                           nodes.data[n->child].next, diags, annot);
         common = common_type(lt, rt);
         if (common == TYPE_COUNT) {
             diag_fmt(diags, LEVEL_ERROR, 0, 0,
@@ -367,18 +389,21 @@ static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
                      type_info_of(rt)->name);
             return TYPE_VOID;
         }
+        annot->data[idx].type = common;
         return common;
     }
-    case ANODE_UNOP:
-        return sema_expr(nodes, stack, n->child, diags);
+    case ANODE_UNOP: {
+        type_tag t = sema_expr(nodes, stack, n->child, diags, annot);
+        annot->data[idx].type = t;
+        return t;
+    }
     default:
-        /* literals, ANODE_CALL, ANODE_INDEX: not yet typed */
         return TYPE_VOID;
     }
 }
 
 static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
-                         diag_vector *diags)
+                         diag_vector *diags, sema_vector *annot)
 {
     const anode *vd = &nodes.data[idx];
     int name_idx = vd->child;
@@ -396,7 +421,6 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
         }
     }
 
-    /* Determine type and optional init expression. */
     type_tag type = TYPE_VOID;
     int type_idx = -1;
     int init_idx = -1;
@@ -412,16 +436,13 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
             init_idx = cur;
     }
 
-    /* Walk init expression BEFORE inserting the variable, so self-references
-     * in the initializer resolve to the outer variable (if any). */
     {
         type_tag init_type = TYPE_VOID;
 
         if (init_idx >= 0)
-            init_type = sema_expr(nodes, stack, init_idx, diags);
+            init_type = sema_expr(nodes, stack, init_idx, diags, annot);
 
         if (type_idx < 0) {
-            /* No type annotation — infer from initializer. */
             if (init_idx >= 0) {
                 if (init_type != TYPE_VOID)
                     type = init_type;
@@ -433,7 +454,6 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                          "cannot infer type of variable '%s' without initializer or type annotation", name);
             }
         } else {
-            /* Type annotation present — check that init can widen into it. */
             if (init_idx >= 0 && init_type != TYPE_VOID) {
                 if (!assignable_to(type, init_type))
                     diag_fmt(diags, LEVEL_ERROR, 0, 0,
@@ -445,6 +465,9 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
         }
     }
 
+    /* Annotate this vardecl with its resolved type. */
+    annot->data[idx].type = type;
+
     /* Insert into current scope. */
     {
         sym_entry entry;
@@ -454,13 +477,13 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
         entry.var.type = type;
         entry.var.is_assigned = (init_idx >= 0);
         entry.var.is_used = false;
+        entry.var.ast_idx = idx;
         sym_set_insert(scope, entry);
     }
-
 }
 
 static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
-                        diag_vector *diags)
+                        diag_vector *diags, sema_vector *annot)
 {
     const anode *asn = &nodes.data[idx];
     int target_idx = asn->child;
@@ -468,7 +491,6 @@ static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
     const char *name = target->sv;
     type_tag rhs_type;
 
-    /* Look up the variable being assigned. */
     sym_entry *found = sym_set_find_bykey(cur_scope(stack), name);
     if (!found) {
         diag_fmt(diags, LEVEL_ERROR, 0, 0,
@@ -477,10 +499,14 @@ static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
     }
     found->var.is_assigned = true;
 
-    /* Walk the right-hand side expression and check type compatibility. */
+    /* Annotate the assignment target IDENT with its declaration. */
+    annot->data[target_idx].type = found->var.type;
+    annot->data[target_idx].decl_idx = found->var.ast_idx;
+
     if (target_idx < 0)
         return;
-    rhs_type = sema_expr(nodes, stack, nodes.data[target_idx].next, diags);
+    rhs_type = sema_expr(nodes, stack, nodes.data[target_idx].next, diags,
+                         annot);
     if (rhs_type != TYPE_VOID && found->var.type != TYPE_VOID) {
         if (!assignable_to(found->var.type, rhs_type))
             diag_fmt(diags, LEVEL_ERROR, 0, 0,
@@ -492,62 +518,72 @@ static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
 }
 
 static void sema_if(node_vector nodes, sym_set_vector *stack, int idx,
-                    diag_vector *diags)
+                    diag_vector *diags, sema_vector *annot)
 {
     const anode *n = &nodes.data[idx];
     int scrutinee_idx = n->child;
 
-    /* Walk scrutinee expression. */
-    sema_expr(nodes, stack, scrutinee_idx, diags);
+    sema_expr(nodes, stack, scrutinee_idx, diags, annot);
 
-    /* Walk arm bodies (each arm body is a block, linked via .next). */
     int arm = nodes.data[scrutinee_idx].next;
     while (arm >= 0) {
         const anode *arm_n = &nodes.data[arm];
         if (arm_n->kind == ANODE_MATCHARM) {
-            /* matcharm: child=pattern, pattern.next=body block */
-            int body_idx = arm_n->child;
-            if (body_idx >= 0)
-                body_idx = nodes.data[body_idx].next;
-            if (body_idx >= 0)
-                sema_block(nodes, stack, body_idx, diags);
+            /* child = pattern, pattern.next = body stmts (not a BLOCK) */
+            int pattern_idx = arm_n->child;
+            if (pattern_idx >= 0) {
+                sema_expr(nodes, stack, pattern_idx, diags, annot);
+
+                /* Push new scope for arm body, iterate body stmts. */
+                sym_set arm_scope;
+                sym_set_copy(&arm_scope, cur_scope(stack));
+                sym_set_vec_push(stack, arm_scope);
+
+                int stmt = nodes.data[pattern_idx].next;
+                while (stmt >= 0) {
+                    sema_stmt(nodes, stack, stmt, diags, annot);
+                    stmt = nodes.data[stmt].next;
+                }
+
+                scope_exit(stack, diags);
+                {
+                    sym_set top = sym_set_vec_pop(stack);
+                    sym_set_free(&top);
+                }
+            }
         }
         arm = arm_n->next;
     }
 }
 
 static void sema_while(node_vector nodes, sym_set_vector *stack, int idx,
-                       diag_vector *diags)
+                       diag_vector *diags, sema_vector *annot)
 {
     const anode *n = &nodes.data[idx];
     int cond_idx = n->child;
 
-    /* Walk condition expression. */
-    sema_expr(nodes, stack, cond_idx, diags);
+    sema_expr(nodes, stack, cond_idx, diags, annot);
 
-    /* Walk body block. */
     if (cond_idx >= 0) {
         int body_idx = nodes.data[cond_idx].next;
         if (body_idx >= 0)
-            sema_block(nodes, stack, body_idx, diags);
+            sema_block(nodes, stack, body_idx, diags, annot);
     }
 }
 
 static void sema_loop(node_vector nodes, sym_set_vector *stack, int idx,
-                      diag_vector *diags)
+                      diag_vector *diags, sema_vector *annot)
 {
     const anode *n = &nodes.data[idx];
     int body_idx = n->child;
 
     if (body_idx >= 0)
-        sema_block(nodes, stack, body_idx, diags);
+        sema_block(nodes, stack, body_idx, diags, annot);
 }
 
 static void sema_return(node_vector nodes, sym_set_vector *stack, int idx,
-                        diag_vector *diags)
+                        diag_vector *diags, sema_vector *annot)
 {
     const anode *n = &nodes.data[idx];
-
-    /* Walk returned expression if present. */
-    sema_expr(nodes, stack, n->child, diags);
+    sema_expr(nodes, stack, n->child, diags, annot);
 }

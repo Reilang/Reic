@@ -16,6 +16,16 @@
 #include "type/type.h"
 
 /*
+ * Per-node semantic annotation.  Indexed by AST node index.
+ */
+typedef struct {
+    type_tag type;
+    int decl_idx;   /* IDENT: AST index of declaration node, else -1 */
+} sema_annot;
+
+DECLARE_VECTOR(sema_annot, sema)
+
+/*
  * Symbol kinds for the tagged union.
  */
 typedef enum {
@@ -31,6 +41,7 @@ typedef struct {
     bool is_assigned;
     bool is_used;
     type_tag type;
+    int ast_idx;    /* AST node index of this declaration */
 } sym_var;
 
 /*
@@ -70,6 +81,6 @@ typedef struct {
 /*
  * Run semantic analysis over the AST.  Appends diagnostics to *diags.
  */
-void sema_check(node_vector nodes, diag_vector *diags);
+sema_vector sema_check(node_vector nodes, diag_vector *diags);
 
 #endif /* SEMA_SEMA_H */
