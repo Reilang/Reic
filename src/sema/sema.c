@@ -93,13 +93,48 @@ static void diag_fmt(diag_vector *diags, level lv, int line, int col,
     diag_add(diags, lv, buf, line, col);
 }
 
+/* Two types are compatible in an expression if they share the same signedness
+ * family (both signed or both unsigned).  Returns the wider type, or TYPE_COUNT
+ * if they are incompatible (cross-family or involving void). */
+static type_tag common_type(type_tag a, type_tag b)
+{
+    const type_info *ai, *bi;
+
+    if (a == b)
+        return a;
+    ai = type_info_of(a);
+    bi = type_info_of(b);
+    if (ai->is_signed != bi->is_signed)
+        return TYPE_COUNT;
+    if (a == TYPE_VOID || b == TYPE_VOID)
+        return TYPE_COUNT;
+    return (ai->width >= bi->width) ? a : b;
+}
+
+/* Can src be assigned to a location of type dst without explicit cast?
+ * Returns true for same type or implicit widening (same family, dst wider). */
+static bool assignable_to(type_tag dst, type_tag src)
+{
+    const type_info *di, *si;
+
+    if (dst == src)
+        return true;
+    if (dst == TYPE_VOID || src == TYPE_VOID)
+        return false;
+    di = type_info_of(dst);
+    si = type_info_of(src);
+    if (di->is_signed != si->is_signed)
+        return false;
+    return di->width >= si->width;
+}
+
 /* forward declarations */
 static void sema_block(node_vector nodes, sym_set_vector *stack,
                        int block_idx, diag_vector *diags);
 static void sema_stmt(node_vector nodes, sym_set_vector *stack, int idx,
                       diag_vector *diags);
-static void sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
-                      diag_vector *diags);
+static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
+                            diag_vector *diags);
 static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                          diag_vector *diags);
 static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
@@ -288,13 +323,13 @@ static void sema_stmt(node_vector nodes, sym_set_vector *stack, int idx,
     }
 }
 
-static void sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
-                      diag_vector *diags)
+static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
+                            diag_vector *diags)
 {
     const anode *n;
 
     if (idx < 0)
-        return;
+        return TYPE_VOID;
 
     n = &nodes.data[idx];
 
@@ -305,27 +340,40 @@ static void sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
         if (!found) {
             diag_fmt(diags, LEVEL_ERROR, 0, 0,
                      "undeclared variable '%s'", n->sv);
-            break;
+            return TYPE_VOID;
         }
         found->var.is_used = true;
         if (!found->var.is_assigned)
             diag_fmt(diags, LEVEL_WARN, 0, 0,
                      "variable '%s' used before assignment", n->sv);
-        break;
+        return found->var.type;
     }
+    case ANODE_ILITERAL:
+        return TYPE_I32;
+    case ANODE_FLITERAL:
+        return TYPE_VOID;
     case ANODE_BINOP: {
-        sema_expr(nodes, stack, n->child, diags);
+        type_tag lt = sema_expr(nodes, stack, n->child, diags);
+        type_tag rt = TYPE_VOID;
+        type_tag common;
         if (n->child >= 0)
-            sema_expr(nodes, stack,
-                      nodes.data[n->child].next, diags);
-        break;
+            rt = sema_expr(nodes, stack,
+                          nodes.data[n->child].next, diags);
+        common = common_type(lt, rt);
+        if (common == TYPE_COUNT) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "type mismatch: cannot combine '%s' with '%s'",
+                     type_info_of(lt)->name,
+                     type_info_of(rt)->name);
+            return TYPE_VOID;
+        }
+        return common;
     }
     case ANODE_UNOP:
-        sema_expr(nodes, stack, n->child, diags);
-        break;
+        return sema_expr(nodes, stack, n->child, diags);
     default:
-        /* literals, ANODE_CALL, ANODE_INDEX: nothing yet */
-        break;
+        /* literals, ANODE_CALL, ANODE_INDEX: not yet typed */
+        return TYPE_VOID;
     }
 }
 
@@ -366,8 +414,36 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
 
     /* Walk init expression BEFORE inserting the variable, so self-references
      * in the initializer resolve to the outer variable (if any). */
-    if (init_idx >= 0)
-        sema_expr(nodes, stack, init_idx, diags);
+    {
+        type_tag init_type = TYPE_VOID;
+
+        if (init_idx >= 0)
+            init_type = sema_expr(nodes, stack, init_idx, diags);
+
+        if (type_idx < 0) {
+            /* No type annotation — infer from initializer. */
+            if (init_idx >= 0) {
+                if (init_type != TYPE_VOID)
+                    type = init_type;
+                else
+                    diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                             "cannot infer type of variable '%s' (initializer has no concrete type)", name);
+            } else {
+                diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                         "cannot infer type of variable '%s' without initializer or type annotation", name);
+            }
+        } else {
+            /* Type annotation present — check that init can widen into it. */
+            if (init_idx >= 0 && init_type != TYPE_VOID) {
+                if (!assignable_to(type, init_type))
+                    diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                             "type mismatch: cannot assign '%s' to variable '%s' of type '%s'",
+                             type_info_of(init_type)->name,
+                             name,
+                             type_info_of(type)->name);
+            }
+        }
+    }
 
     /* Insert into current scope. */
     {
@@ -381,7 +457,6 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
         sym_set_insert(scope, entry);
     }
 
-    (void)type_idx;
 }
 
 static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
@@ -391,6 +466,7 @@ static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
     int target_idx = asn->child;
     const anode *target = &nodes.data[target_idx];
     const char *name = target->sv;
+    type_tag rhs_type;
 
     /* Look up the variable being assigned. */
     sym_entry *found = sym_set_find_bykey(cur_scope(stack), name);
@@ -401,9 +477,18 @@ static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
     }
     found->var.is_assigned = true;
 
-    /* Walk the right-hand side expression. */
-    if (target_idx >= 0)
-        sema_expr(nodes, stack, nodes.data[target_idx].next, diags);
+    /* Walk the right-hand side expression and check type compatibility. */
+    if (target_idx < 0)
+        return;
+    rhs_type = sema_expr(nodes, stack, nodes.data[target_idx].next, diags);
+    if (rhs_type != TYPE_VOID && found->var.type != TYPE_VOID) {
+        if (!assignable_to(found->var.type, rhs_type))
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "type mismatch: cannot assign '%s' to variable '%s' of type '%s'",
+                     type_info_of(rhs_type)->name,
+                     name,
+                     type_info_of(found->var.type)->name);
+    }
 }
 
 static void sema_if(node_vector nodes, sym_set_vector *stack, int idx,
