@@ -24,7 +24,7 @@ int main(void)
                      "        = 10 =>\n"
                      "            var z := 42\n"
                      "            x := z\n"
-                     "        = 20 =>\n"
+                     "        < 20 =>\n"
                      "            return y\n"
                      "    }\n"
                      "    while (x < 100) {\n"

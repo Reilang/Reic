@@ -91,6 +91,18 @@ char *token_print(token token_)
     case TK_COLON:
         snprintf(buffer, 256, "[%d:%d] :", token_.line, token_.column);
         break;
+    case TK_NOT:
+        snprintf(buffer, 256, "[%d:%d] !", token_.line, token_.column);
+        break;
+    case TK_GREATEREQUAL:
+        snprintf(buffer, 256, "[%d:%d] >=", token_.line, token_.column);
+        break;
+    case TK_LESSEQUAL:
+        snprintf(buffer, 256, "[%d:%d] <=", token_.line, token_.column);
+        break;
+    case TK_NOTEQUAL:
+        snprintf(buffer, 256, "[%d:%d] !=", token_.line, token_.column);
+        break;
     case TK_NEXTLINE:
         snprintf(buffer, 256, "[%d:%d] <nextline>", token_.line, token_.column);
         break;

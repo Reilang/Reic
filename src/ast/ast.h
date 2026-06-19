@@ -45,7 +45,7 @@ typedef enum {
     ANODE_LOOP,         /* loop { body } — body via child */
     ANODE_FOR,          /* for in range — not yet implemented */
     ANODE_RETURN,       /* return [expr] — expr via child */
-    ANODE_MATCHARM,     /* = pattern => body — pattern via child, body via next */
+    ANODE_MATCHARM,     /* op pattern => body — op in .op, pattern via child, body via next */
 
     /* declarations */
     ANODE_FUNCDECL,     /* fn name(params) -> rettype { body } */

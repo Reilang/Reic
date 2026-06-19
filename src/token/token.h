@@ -43,9 +43,17 @@ typedef enum {
     TK_CABRACKET,  /* > */
 
     TK_COLON,      /* : */
+    TK_NOT,        /* ! */
 
     TK_NEXTLINE,   /* logical newline (statement separator) */
-    TK_EOF         /* end of input */
+    TK_EOF,        /* end of input */
+
+    /* Synthetic multi-character operators for match-arm comparison.
+     * These are never emitted by the lexer; the parser combines
+     * primitive tokens into these codes for storage in MATCHARM.op. */
+    TK_GREATEREQUAL,  /* >= */
+    TK_LESSEQUAL,     /* <= */
+    TK_NOTEQUAL       /* != */
 } tktype;
 
 /* A single token produced by the lexer.  .type selects the active union member. */

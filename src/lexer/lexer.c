@@ -97,7 +97,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '(' || cur == ')' || cur == '[' || cur == ']'
                 || cur == '{' || cur == '}' || cur == ',' || cur == '+'
                 || cur == '-' || cur == '*' || cur == '/' || cur == ':'
-                || cur == '=' || cur == '<' || cur == '>') {
+                || cur == '=' || cur == '<' || cur == '>' || cur == '!') {
                 switch (cur) {
                 case '+': emit_tok(l, tokens, TK_ADD,       sline, scol); break;
                 case '-': emit_tok(l, tokens, TK_MINUS,     sline, scol); break;
@@ -121,6 +121,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 case ':': emit_tok(l, tokens, TK_COLON,     sline, scol); break;
                 case '<': emit_tok(l, tokens, TK_OABRACKET, sline, scol); break;
                 case '>': emit_tok(l, tokens, TK_CABRACKET, sline, scol); break;
+                case '!': emit_tok(l, tokens, TK_NOT,       sline, scol); break;
                 default:  l->state = LSTATE_ERROR; continue;
                 }
                 break;

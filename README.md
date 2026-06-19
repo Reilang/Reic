@@ -10,7 +10,7 @@ fn main(a: int32, b: int32) -> int32 {
         = 10 =>
             var z := 42
             x := z
-        = 20 =>
+        < 20 =>
             return y
     }
 

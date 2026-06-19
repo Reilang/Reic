@@ -103,13 +103,18 @@ char *anode_print(anode node_)
 static const char *binop_symbol(tktype op)
 {
     switch (op) {
-    case TK_ADD:        return "+";
-    case TK_MINUS:      return "-";
-    case TK_STAR:       return "*";
-    case TK_SLASH:      return "/";
-    case TK_OABRACKET:  return "<";
-    case TK_CABRACKET:  return ">";
-    default:            return "?";
+    case TK_ADD:           return "+";
+    case TK_MINUS:         return "-";
+    case TK_STAR:          return "*";
+    case TK_SLASH:         return "/";
+    case TK_EQUAL:         return "=";
+    case TK_OABRACKET:     return "<";
+    case TK_CABRACKET:     return ">";
+    case TK_NOT:           return "!";
+    case TK_GREATEREQUAL:  return ">=";
+    case TK_LESSEQUAL:     return "<=";
+    case TK_NOTEQUAL:      return "!=";
+    default:               return "?";
     }
 }
 
@@ -149,6 +154,11 @@ static void node_label(const anode *n, char *buf, size_t buf_sz)
                  n->cv);
         break;
     case ANODE_BINOP:
+        snprintf(buf, buf_sz, "%s '%s'",
+                 kind_name(n->kind),
+                 binop_symbol(n->op));
+        break;
+    case ANODE_MATCHARM:
         snprintf(buf, buf_sz, "%s '%s'",
                  kind_name(n->kind),
                  binop_symbol(n->op));

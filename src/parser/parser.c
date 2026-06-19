@@ -542,6 +542,45 @@ static int parse_return(parser *p, node_vector *nodes, diag_vector *diags)
     return ret_idx;
 }
 
+static int is_arm_op(tktype t)
+{
+    switch (t) {
+    case TK_EQUAL:
+    case TK_OABRACKET:
+    case TK_CABRACKET:
+    case TK_NOT:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+/*
+ * Read a match-arm comparison operator.
+ * Handles compound operators >=  <=  !=
+ * Returns the operator code (tktype) to store in MATCHARM.op.
+ */
+static int read_arm_op(parser *p)
+{
+    tktype base = curtok(p).type;
+
+    if (p->cursor + 1 < p->tokens.size) {
+        token next = token_vec_get(&p->tokens, p->cursor + 1);
+        if (next.type == TK_EQUAL) {
+            p->cursor += 2;
+            switch (base) {
+            case TK_CABRACKET: return TK_GREATEREQUAL;
+            case TK_OABRACKET: return TK_LESSEQUAL;
+            case TK_NOT:       return TK_NOTEQUAL;
+            default:           break;
+            }
+        }
+    }
+
+    p->cursor++;
+    return (int)base;
+}
+
 static int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
 {
     token tk;
@@ -591,14 +630,14 @@ static int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
         if (tk.type == TK_CBRACE)
             break;
 
-        if (tk.type != TK_EQUAL) {
-            diag_add(diags, LEVEL_ERROR, "expected '=' to start match arm",
+        if (!is_arm_op(tk.type)) {
+            diag_add(diags, LEVEL_ERROR, "expected match arm operator",
                      tk.line, tk.column);
             sync(p);
             if (arm_head < 0) return -1;
             break;
         }
-        p->cursor++;
+        int arm_op = read_arm_op(p);
 
         skip_newlines(p);
         pattern_idx = parse_expr(p, nodes, diags, 0);
@@ -623,11 +662,11 @@ static int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
         }
         p->cursor++;
 
-        /* arm body: stmts until next '=' or '}' */
+        /* arm body: stmts until next arm operator or '}' */
         for (;;) {
             skip_newlines(p);
             tk = curtok(p);
-            if (tk.type == TK_EQUAL || tk.type == TK_CBRACE || at_eof(p))
+            if (is_arm_op(tk.type) || tk.type == TK_CBRACE || at_eof(p))
                 break;
 
             int sidx = parse_stmt(p, nodes, diags);
@@ -641,6 +680,7 @@ static int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
         }
 
         arm_idx = new_node(nodes, ANODE_MATCHARM);
+        nodes->data[arm_idx].op = arm_op;
         nodes->data[arm_idx].child = pattern_idx;
         if (body_head >= 0)
             nodes->data[pattern_idx].next = body_head;
