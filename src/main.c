@@ -111,11 +111,20 @@ int main(void)
     }
 
     /* codegen */
-    if (diags.size == 0) {
-        if (codegen_emit(&nodes, "output.ll") == 0)
-            printf("\n=> wrote output.ll\n");
-        else
-            printf("\n=> codegen failed\n");
+    {
+        bool has_errors = false;
+        for (i = 0; i < diags.size; i++) {
+            if (diags.data[i].level_ == LEVEL_ERROR) {
+                has_errors = true;
+                break;
+            }
+        }
+        if (!has_errors) {
+            if (codegen_emit(&hir, "output.ll") == 0)
+                printf("\n=> wrote output.ll\n");
+            else
+                printf("\n=> codegen failed\n");
+        }
     }
 
     /* cleanup */

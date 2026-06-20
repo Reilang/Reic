@@ -148,14 +148,15 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
             param_last = lower_params(nodes, annot, hir, ast2hir, first_param);
         }
 
-        int body_first = lower_block_body(nodes, annot, hir, ast2hir, body_idx);
+        int body_hir = lower_node(nodes, annot, hir, ast2hir,
+                                    body_idx, TYPE_VOID);
 
         if (param_last >= 0)
-            hir->data[param_last].next = body_first;
+            hir->data[param_last].next = body_hir;
         hn.child = (first_param >= 0 && first_param != body_idx
                     && nodes.data[first_param].kind == ANODE_VARDECL)
                        ? ast2hir[first_param]
-                       : body_first;
+                       : body_hir;
         break;
     }
     case ANODE_VARDECL: {
