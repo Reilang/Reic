@@ -50,6 +50,7 @@ typedef enum {
     /* declarations */
     ANODE_FUNCDECL,     /* fn name(params) -> rettype { body } */
     ANODE_VARDECL,      /* var name[: type][:= init] */
+    ANODE_CONSTDECL,    /* name = value  -- compile-time constant */
     ANODE_TYPEDECL,     /* type alias — not yet implemented */
 
     ANODE_COUNT

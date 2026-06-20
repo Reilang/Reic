@@ -19,8 +19,9 @@
 int main(void)
 {
     char src_raw[] = "fn main(a: int32, b: int32) -> int32 {\n"
+                     "    MAX_VAL = 100\n"
                      "    var x: int32 := 1\n"
-                     "    var y := x + 2\n"
+                     "    var y := x + MAX_VAL\n"
                      "    x := x + y\n"
                      "    if (x) {\n"
                      "        = 10 =>\n"
@@ -29,7 +30,7 @@ int main(void)
                      "        < 20 =>\n"
                      "            return y\n"
                      "    }\n"
-                     "    while (x < 100) {\n"
+                     "    while (x < MAX_VAL) {\n"
                      "        x := x + 1\n"
                      "    }\n"
                      "    loop {\n"

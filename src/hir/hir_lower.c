@@ -316,12 +316,22 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         break;
     case ANODE_IDENT_VAR:
     case ANODE_IDENT: {
-        hn.kind = HIR_IDENT;
         int decl_ast = annot->data[idx].decl_idx;
-        if (decl_ast >= 0 && ast2hir[decl_ast] >= 0)
-            hn.iv = ast2hir[decl_ast];
-        else
-            hn.iv = -1;
+        if (decl_ast >= 0
+            && nodes.data[decl_ast].kind == ANODE_CONSTDECL) {
+            /* Inline compile-time constant as a literal. */
+            hn.kind = HIR_ILITERAL;
+            hn.type = annot->data[idx].type;
+            int name_idx = nodes.data[decl_ast].child;
+            int value_idx = nodes.data[name_idx].next;
+            hn.iv = nodes.data[value_idx].iv;
+        } else {
+            hn.kind = HIR_IDENT;
+            if (decl_ast >= 0 && ast2hir[decl_ast] >= 0)
+                hn.iv = ast2hir[decl_ast];
+            else
+                hn.iv = -1;
+        }
         break;
     }
     case ANODE_CALL:
@@ -329,6 +339,10 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         hn.kind = HIR_NONE;
         break;
     case ANODE_INDEX:
+        hn.kind = HIR_NONE;
+        break;
+    case ANODE_CONSTDECL:
+        /* Const values are inlined at use sites; decl itself is no-op. */
         hn.kind = HIR_NONE;
         break;
     default:

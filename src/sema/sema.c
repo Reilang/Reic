@@ -138,6 +138,8 @@ static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
                           diag_vector *diags, sema_vector *annot);
 static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                          diag_vector *diags, sema_vector *annot);
+static void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
+                           diag_vector *diags, sema_vector *annot);
 static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
                         diag_vector *diags, sema_vector *annot);
 static void sema_if(node_vector nodes, sym_set_vector *stack, int idx,
@@ -164,22 +166,36 @@ static void scope_exit(sym_set_vector *stack, diag_vector *diags)
             continue;
 
         sym_entry *e = &inner->entries[i];
-        if (e->kind != SYM_VAR)
-            continue;
 
-        if (e->decl_depth < depth) {
-            if (parent) {
-                sym_entry *pe =
-                    sym_set_find_bykey(parent, e->key);
-                if (pe && pe->kind == SYM_VAR) {
-                    pe->var.is_used |= e->var.is_used;
-                    pe->var.is_assigned |= e->var.is_assigned;
+        if (e->kind == SYM_VAR) {
+            if (e->decl_depth < depth) {
+                if (parent) {
+                    sym_entry *pe =
+                        sym_set_find_bykey(parent, e->key);
+                    if (pe && pe->kind == SYM_VAR) {
+                        pe->var.is_used |= e->var.is_used;
+                        pe->var.is_assigned |= e->var.is_assigned;
+                    }
                 }
+            } else {
+                if (!e->var.is_used)
+                    diag_fmt(diags, LEVEL_WARN, 0, 0,
+                             "unused variable '%s'", e->key);
             }
-        } else {
-            if (!e->var.is_used)
-                diag_fmt(diags, LEVEL_WARN, 0, 0,
-                         "unused variable '%s'", e->key);
+        } else if (e->kind == SYM_CONST) {
+            if (e->decl_depth < depth) {
+                if (parent) {
+                    sym_entry *pe =
+                        sym_set_find_bykey(parent, e->key);
+                    if (pe && pe->kind == SYM_CONST) {
+                        pe->const_.is_used |= e->const_.is_used;
+                    }
+                }
+            } else {
+                if (!e->const_.is_used)
+                    diag_fmt(diags, LEVEL_WARN, 0, 0,
+                             "unused constant '%s'", e->key);
+            }
         }
     }
 }
@@ -275,6 +291,9 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
                 if (e->kind == SYM_VAR && !e->var.is_used)
                     diag_fmt(diags, LEVEL_WARN, 0, 0,
                              "unused variable '%s'", e->key);
+                if (e->kind == SYM_CONST && !e->const_.is_used)
+                    diag_fmt(diags, LEVEL_WARN, 0, 0,
+                             "unused constant '%s'", e->key);
             }
         }
 
@@ -322,6 +341,9 @@ static void sema_stmt(node_vector nodes, sym_set_vector *stack, int idx,
     case ANODE_VARDECL:
         sema_vardecl(nodes, stack, idx, diags, annot);
         break;
+    case ANODE_CONSTDECL:
+        sema_constdecl(nodes, stack, idx, diags, annot);
+        break;
     case ANODE_ASSIGN:
         sema_assign(nodes, stack, idx, diags, annot);
         break;
@@ -361,6 +383,14 @@ static type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
                      "undeclared variable '%s'", n->sv);
             return TYPE_VOID;
         }
+
+        if (found->kind == SYM_CONST) {
+            found->const_.is_used = true;
+            annot->data[idx].type = found->const_.type;
+            annot->data[idx].decl_idx = found->const_.ast_idx;
+            return found->const_.type;
+        }
+
         found->var.is_used = true;
         if (!found->var.is_assigned)
             diag_fmt(diags, LEVEL_WARN, 0, 0,
@@ -482,6 +512,57 @@ static void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
     }
 }
 
+static void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
+                           diag_vector *diags, sema_vector *annot)
+{
+    const anode *cd = &nodes.data[idx];
+    int name_idx = cd->child;
+    const anode *name_n = &nodes.data[name_idx];
+    const char *name = name_n->sv;
+    sym_set *scope = cur_scope(stack);
+
+    /* Check duplicate in current scope. */
+    {
+        sym_entry *existing = sym_set_find_bykey(scope, name);
+        if (existing && existing->decl_depth == cur_depth(stack)) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "duplicate declaration '%s'", name);
+            return;
+        }
+    }
+
+    int value_idx = nodes.data[name_idx].next;
+
+    /* For v1: only integer literals are compile-time evaluable. */
+    if (value_idx < 0 || nodes.data[value_idx].kind != ANODE_ILITERAL) {
+        diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                 "constant '%s' must be initialized with an integer literal",
+                 name);
+        return;
+    }
+
+    type_tag type = TYPE_I32;
+    int64_t value = nodes.data[value_idx].iv;
+
+    /* Annotate the CONSTDECL and its name child. */
+    annot->data[idx].type = type;
+    annot->data[name_idx].type = type;
+    annot->data[name_idx].decl_idx = idx;
+
+    /* Insert into current scope. */
+    {
+        sym_entry entry;
+        entry.key = name;
+        entry.kind = SYM_CONST;
+        entry.decl_depth = cur_depth(stack);
+        entry.const_.type = type;
+        entry.const_.value = value;
+        entry.const_.is_used = false;
+        entry.const_.ast_idx = idx;
+        sym_set_insert(scope, entry);
+    }
+}
+
 static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
                         diag_vector *diags, sema_vector *annot)
 {
@@ -497,6 +578,14 @@ static void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
                  "assignment to undeclared variable '%s'", name);
         return;
     }
+
+    /* Reject assignment to compile-time constants. */
+    if (found->kind == SYM_CONST) {
+        diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                 "cannot assign to constant '%s'", name);
+        return;
+    }
+
     found->var.is_assigned = true;
 
     /* Annotate the assignment target IDENT with its declaration. */

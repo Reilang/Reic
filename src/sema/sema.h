@@ -30,6 +30,7 @@ DECLARE_VECTOR(sema_annot, sema)
  */
 typedef enum {
     SYM_VAR,
+    SYM_CONST,   /* compile-time constant */
     SYM_FUNC,
     SYM_TYPE,
 } sym_kind;
@@ -54,6 +55,16 @@ typedef struct {
 } sym_func;
 
 /*
+ * Constant symbol: compile-time constant declaration.
+ */
+typedef struct {
+    bool is_used;
+    type_tag type;
+    int64_t value;
+    int ast_idx;    /* AST node index of the ANODE_CONSTDECL */
+} sym_const;
+
+/*
  * Type symbol: named type alias (user-defined type).
  */
 typedef struct {
@@ -73,6 +84,7 @@ typedef struct {
     int decl_depth;
     union {
         sym_var var;
+        sym_const const_;
         sym_func func;
         sym_type type;
     };

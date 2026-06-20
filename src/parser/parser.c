@@ -66,6 +66,7 @@ static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min
 static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags);
+static int parse_constdecl(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_if(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_while(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_loop(parser *p, node_vector *nodes, diag_vector *diags);
@@ -103,8 +104,18 @@ static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags)
             return parse_return(p, nodes, diags);
     }
 
-    if (tk.type == TK_IDENT)
-        return parse_assign(p, nodes, diags);
+    if (tk.type == TK_IDENT) {
+        /* Lookahead: '=' alone -> constdecl, ':' -> assign (:=) */
+        int saved = p->cursor;
+        p->cursor++;
+        skip_newlines(p);
+        token next = curtok(p);
+        p->cursor = saved;
+        if (next.type == TK_EQUAL)
+            return parse_constdecl(p, nodes, diags);
+        else
+            return parse_assign(p, nodes, diags);
+    }
 
     diag_add(diags, LEVEL_ERROR, "expected statement",
             tk.line, tk.column);
@@ -446,6 +457,29 @@ static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
     nodes->data[var_idx].next = expr_idx;
 
     return assign_idx;
+}
+
+static int parse_constdecl(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    token tk = curtok(p);
+    int name_idx, value_idx, constdecl_idx;
+
+    /* tk is TK_IDENT — confirmed by caller */
+    name_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
+    p->cursor++;
+
+    skip_newlines(p);
+    p->cursor++;  /* skip '=' */
+    skip_newlines(p);
+
+    value_idx = parse_expr(p, nodes, diags, 0);
+    if (value_idx < 0) return -1;
+
+    constdecl_idx = new_node(nodes, ANODE_CONSTDECL);
+    nodes->data[constdecl_idx].child = name_idx;
+    nodes->data[name_idx].next = value_idx;
+
+    return constdecl_idx;
 }
 
 static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);

@@ -40,6 +40,7 @@ static const char *kind_name(anode_kind kind)
     case ANODE_MATCHARM:   return "MATCHARM";
     case ANODE_FUNCDECL:   return "FUNCDECL";
     case ANODE_VARDECL:    return "VARDECL";
+    case ANODE_CONSTDECL:  return "CONSTDECL";
     case ANODE_TYPEDECL:   return "TYPEDECL";
     default:               return "???";
     }
