@@ -63,6 +63,8 @@ static int new_ident(node_vector *nodes, const char *name, anode_kind kind)
 /* stupid forward declaration */
 static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
+static int parse_block_body(parser *p, node_vector *nodes, diag_vector *diags,
+                            const char *context);
 static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags);
 static int parse_assign(parser *p, node_vector *nodes, diag_vector *diags);
@@ -123,6 +125,61 @@ static int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags)
     return -1;
 }
 
+/*
+ * Parse statements inside a braced block.  The caller must consume the opening
+ * brace and push PSTATE_BLOCK before calling this function.
+ *
+ * Returns the ANODE_BLOCK node index.  'context' is used in the EOF error
+ * message (e.g. "function body", "while body").
+ */
+static int parse_block_body(parser *p, node_vector *nodes, diag_vector *diags,
+                            const char *context)
+{
+    int initial_sz = p->states.size;
+    int block_idx = new_node(nodes, ANODE_BLOCK);
+    int first_stmt = -1;
+    int last_stmt = -1;
+
+    while (p->states.size >= initial_sz && p->cursor < p->tokens.size) {
+        skip_newlines(p);
+        if (at_eof(p)) {
+            char efbuf[128];
+            snprintf(efbuf, sizeof(efbuf), "unexpected end of file in %s",
+                     context);
+            diag_add(diags, LEVEL_ERROR, efbuf,
+                     curtok(p).line, curtok(p).column);
+            break;
+        }
+
+        if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
+            token tk = curtok(p);
+            if (tk.type == TK_CBRACE) {
+                p->cursor++;
+                state_vec_pop(&p->states);
+                continue;
+            }
+            if (tk.type == TK_OBRACE) {
+                p->cursor++;
+                state_vec_push(&p->states, PSTATE_BLOCK);
+                continue;
+            }
+            {
+                int sidx = parse_stmt(p, nodes, diags);
+                if (sidx >= 0) {
+                    if (first_stmt < 0)
+                        first_stmt = sidx;
+                    else
+                        nodes->data[last_stmt].next = sidx;
+                    last_stmt = sidx;
+                }
+            }
+        }
+    }
+
+    nodes->data[block_idx].child = first_stmt;
+    return block_idx;
+}
+
 static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
 {
     token tk;
@@ -130,7 +187,6 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     int param_head = -1;
     int param_tail = -1;
     int prev_link;
-    int initial_sz;
 
     p->cursor++; /* skip 'fn' */
 
@@ -271,46 +327,8 @@ static int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     p->cursor++;
 
     state_vec_push(&p->states, PSTATE_BLOCK);
-    initial_sz = p->states.size;
     {
-        int block_idx = new_node(nodes, ANODE_BLOCK);
-        int first_stmt = -1;
-        int last_stmt = -1;
-
-        while (p->states.size >= initial_sz && p->cursor < p->tokens.size) {
-            skip_newlines(p);
-            if (at_eof(p)) {
-                diag_add(diags, LEVEL_ERROR, "unexpected end of file in function body",
-                         curtok(p).line, curtok(p).column);
-                break;
-            }
-
-            if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
-                tk = curtok(p);
-                if (tk.type == TK_CBRACE) {
-                    p->cursor++;
-                    state_vec_pop(&p->states);
-                    continue;
-                }
-                if (tk.type == TK_OBRACE) {
-                    p->cursor++;
-                    state_vec_push(&p->states, PSTATE_BLOCK);
-                    continue;
-                }
-                {
-                    int sidx = parse_stmt(p, nodes, diags);
-                    if (sidx >= 0) {
-                        if (first_stmt < 0)
-                            first_stmt = sidx;
-                        else
-                            nodes->data[last_stmt].next = sidx;
-                        last_stmt = sidx;
-                    }
-                }
-            }
-        }
-
-        nodes->data[block_idx].child = first_stmt;
+        int block_idx = parse_block_body(p, nodes, diags, "function body");
 
         func_idx = new_node(nodes, ANODE_FUNCDECL);
         nodes->data[func_idx].child = name_idx;
@@ -740,9 +758,6 @@ static int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
 static int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
 {
     int cond_idx, block_idx, while_idx;
-    int first_stmt = -1;
-    int last_stmt = -1;
-    int initial_sz;
 
     p->cursor++; /* skip 'while' */
 
@@ -776,46 +791,7 @@ static int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
     p->cursor++;
 
     state_vec_push(&p->states, PSTATE_BLOCK);
-    initial_sz = p->states.size;
-    {
-        block_idx = new_node(nodes, ANODE_BLOCK);
-
-        while (p->states.size >= initial_sz && p->cursor < p->tokens.size) {
-            skip_newlines(p);
-            if (at_eof(p)) {
-                diag_add(diags, LEVEL_ERROR,
-                         "unexpected end of file in while body",
-                         curtok(p).line, curtok(p).column);
-                break;
-            }
-
-            if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
-                token tk = curtok(p);
-                if (tk.type == TK_CBRACE) {
-                    p->cursor++;
-                    state_vec_pop(&p->states);
-                    continue;
-                }
-                if (tk.type == TK_OBRACE) {
-                    p->cursor++;
-                    state_vec_push(&p->states, PSTATE_BLOCK);
-                    continue;
-                }
-                {
-                    int sidx = parse_stmt(p, nodes, diags);
-                    if (sidx >= 0) {
-                        if (first_stmt < 0)
-                            first_stmt = sidx;
-                        else
-                            nodes->data[last_stmt].next = sidx;
-                        last_stmt = sidx;
-                    }
-                }
-            }
-        }
-
-        nodes->data[block_idx].child = first_stmt;
-    }
+    block_idx = parse_block_body(p, nodes, diags, "while body");
 
     while_idx = new_node(nodes, ANODE_WHILE);
     nodes->data[while_idx].child = cond_idx;
@@ -827,9 +803,6 @@ static int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
 static int parse_loop(parser *p, node_vector *nodes, diag_vector *diags)
 {
     int block_idx, loop_idx;
-    int first_stmt = -1;
-    int last_stmt = -1;
-    int initial_sz;
 
     p->cursor++; /* skip 'loop' */
 
@@ -843,46 +816,7 @@ static int parse_loop(parser *p, node_vector *nodes, diag_vector *diags)
     p->cursor++;
 
     state_vec_push(&p->states, PSTATE_BLOCK);
-    initial_sz = p->states.size;
-    {
-        block_idx = new_node(nodes, ANODE_BLOCK);
-
-        while (p->states.size >= initial_sz && p->cursor < p->tokens.size) {
-            skip_newlines(p);
-            if (at_eof(p)) {
-                diag_add(diags, LEVEL_ERROR,
-                         "unexpected end of file in loop body",
-                         curtok(p).line, curtok(p).column);
-                break;
-            }
-
-            if (state_vec_get(&p->states, p->states.size - 1) == PSTATE_BLOCK) {
-                token tk = curtok(p);
-                if (tk.type == TK_CBRACE) {
-                    p->cursor++;
-                    state_vec_pop(&p->states);
-                    continue;
-                }
-                if (tk.type == TK_OBRACE) {
-                    p->cursor++;
-                    state_vec_push(&p->states, PSTATE_BLOCK);
-                    continue;
-                }
-                {
-                    int sidx = parse_stmt(p, nodes, diags);
-                    if (sidx >= 0) {
-                        if (first_stmt < 0)
-                            first_stmt = sidx;
-                        else
-                            nodes->data[last_stmt].next = sidx;
-                        last_stmt = sidx;
-                    }
-                }
-            }
-        }
-
-        nodes->data[block_idx].child = first_stmt;
-    }
+    block_idx = parse_block_body(p, nodes, diags, "loop body");
 
     loop_idx = new_node(nodes, ANODE_LOOP);
     nodes->data[loop_idx].child = block_idx;
