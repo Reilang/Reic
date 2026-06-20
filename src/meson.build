@@ -11,6 +11,9 @@ lib_srcs = files(
   'hir/hir.c',
   'hir/hir_lower.c',
   'sema/sema.c',
+  'sema/sema_decl.c',
+  'sema/sema_stmt.c',
+  'sema/sema_expr.c',
   'codegen/codegen.c',
 )
 
