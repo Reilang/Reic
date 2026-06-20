@@ -35,3 +35,4 @@ if get_option('asan')
 endif
 
 subdir('src')
+subdir('tests')

@@ -1,5 +1,4 @@
-srcs = files(
-  'main.c',
+lib_srcs = files(
   'lexer/lexer.c',
   'token/token.c',
   'diag/diag.c',
@@ -12,8 +11,14 @@ srcs = files(
   'codegen/codegen.c',
 )
 
+reic_lib = static_library('reic',
+  lib_srcs,
+  include_directories: include_directories('.'),
+)
+
 executable('reic',
-  srcs,
+  'main.c',
+  link_with: reic_lib,
   include_directories: include_directories('.'),
   install: true,
 )
