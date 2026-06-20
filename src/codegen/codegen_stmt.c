@@ -1,0 +1,281 @@
+/*
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |  R e i C                                                             |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * codegen_stmt.c — LLVM IR emission for statements and control flow.
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+#include "codegen/codegen_internal.h"
+
+bool can_use_switch(CgCtx *ctx, int if_idx, type_tag scr_type)
+{
+    hnode *if_n = &ctx->hir->data[if_idx];
+    int scrutinee_idx = if_n->child;
+    if (scrutinee_idx < 0) return false;
+
+    int arm = ctx->hir->data[scrutinee_idx].next;
+    if (arm < 0) return false;
+
+    while (arm >= 0) {
+        hnode *a = &ctx->hir->data[arm];
+        if (a->kind != HIR_MATCHARM) { arm = a->next; continue; }
+        if (a->op != TK_EQUAL) return false;
+
+        int pat_idx = a->child;
+        if (pat_idx < 0) return false;
+        hnode *pat = &ctx->hir->data[pat_idx];
+        if (pat->kind != HIR_ILITERAL) return false;
+        if (pat->type != scr_type) return false;
+
+        arm = a->next;
+    }
+    return true;
+}
+
+void emit_if_switch(CgCtx *ctx, int if_idx, const char *scr_reg,
+                     type_tag scr_type, const char *merge_label_arg)
+{
+    hnode *if_n = &ctx->hir->data[if_idx];
+    int scrutinee_idx = if_n->child;
+    const char *ty = llvm_ty(scr_type);
+
+    char merge_label[64];
+    snprintf(merge_label, sizeof(merge_label), "%s", merge_label_arg);
+
+    int case_vals[64];
+    char case_labels[64][64];
+    int ncases = 0;
+
+    int arm = ctx->hir->data[scrutinee_idx].next;
+    while (arm >= 0) {
+        hnode *a = &ctx->hir->data[arm];
+        if (a->kind == HIR_MATCHARM) {
+            int pat_idx = a->child;
+            case_vals[ncases] = (int)ctx->hir->data[pat_idx].iv;
+            snprintf(case_labels[ncases], sizeof(case_labels[ncases]),
+                     "%s", cg_new_label(ctx, "if_arm"));
+            ncases++;
+        }
+        arm = a->next;
+    }
+
+    /* Emit switch. */
+    fprintf(ctx->f, "  switch %s %s, label %%%s [\n", ty, scr_reg, merge_label);
+    for (int i = 0; i < ncases; i++) {
+        fprintf(ctx->f, "    %s %d, label %%%s\n",
+                ty, case_vals[i], case_labels[i]);
+    }
+    fprintf(ctx->f, "  ]\n");
+
+    /* Emit arm bodies. */
+    int case_i = 0;
+    arm = ctx->hir->data[scrutinee_idx].next;
+    while (arm >= 0) {
+        hnode *a = &ctx->hir->data[arm];
+        if (a->kind == HIR_MATCHARM) {
+            fprintf(ctx->f, "\n%s:\n", case_labels[case_i]);
+
+            int pat_idx = a->child;
+            int body = ctx->hir->data[pat_idx].next;
+            while (body >= 0) {
+                emit_stmt(ctx, body);
+                body = ctx->hir->data[body].next;
+            }
+
+            fprintf(ctx->f, "  br label %%%s\n", merge_label);
+            case_i++;
+        }
+        arm = a->next;
+    }
+}
+
+void emit_if_chain(CgCtx *ctx, int if_idx, const char *scr_reg,
+                    type_tag scr_type, const char *merge_label_arg)
+{
+    hnode *if_n = &ctx->hir->data[if_idx];
+    int scrutinee_idx = if_n->child;
+    const char *ty = llvm_ty(scr_type);
+    bool scr_signed = type_info_of(scr_type)->is_signed;
+
+    char merge_label[64];
+    snprintf(merge_label, sizeof(merge_label), "%s", merge_label_arg);
+
+    /* Collect arms. */
+    int arm_list[64];
+    int narms = 0;
+    int cur = ctx->hir->data[scrutinee_idx].next;
+    while (cur >= 0) {
+        hnode *a = &ctx->hir->data[cur];
+        if (a->kind == HIR_MATCHARM) {
+            arm_list[narms++] = cur;
+        }
+        cur = a->next;
+    }
+
+    if (narms == 0) {
+        fprintf(ctx->f, "  br label %%%s\n", merge_label);
+        return;
+    }
+
+    /* Emit check chain. */
+    for (int i = 0; i < narms; i++) {
+        int arm_idx = arm_list[i];
+        hnode *arm_n = &ctx->hir->data[arm_idx];
+
+        char arm_label[64], next_label[64];
+        snprintf(arm_label, sizeof(arm_label), "%s",
+                 cg_new_label(ctx, "if_arm"));
+        if (i + 1 < narms)
+            snprintf(next_label, sizeof(next_label), "%s", cg_new_label(ctx, "if_check"));
+        else
+            snprintf(next_label, sizeof(next_label), "%s", merge_label);
+
+        int pat_idx = arm_n->child;
+        char pat_buf[64];
+        const char *pat_reg = emit_expr(ctx, pat_idx);
+        snprintf(pat_buf, sizeof(pat_buf), "%s", pat_reg);
+
+        const char *cond_reg = cg_new_reg(ctx);
+        const char *cond = icmp_cond(arm_n->op, scr_signed);
+        fprintf(ctx->f, "  %s = icmp %s %s %s, %s\n",
+                cond_reg, cond, ty, scr_reg, pat_buf);
+        fprintf(ctx->f, "  br i1 %s, label %%%s, label %%%s\n",
+                cond_reg, arm_label, next_label);
+
+        /* Emit arm body. */
+        fprintf(ctx->f, "\n%s:\n", arm_label);
+        int body = ctx->hir->data[pat_idx].next;
+        while (body >= 0) {
+            emit_stmt(ctx, body);
+            body = ctx->hir->data[body].next;
+        }
+        fprintf(ctx->f, "  br label %%%s\n", merge_label);
+
+        /* Next check label (if not the last). */
+        if (i + 1 < narms)
+            fprintf(ctx->f, "\n%s:\n", next_label);
+    }
+}
+
+void emit_stmt(CgCtx *ctx, int idx)
+{
+    if (idx < 0) return;
+
+    hnode *n = &ctx->hir->data[idx];
+
+    switch (n->kind) {
+    case HIR_BLOCK: {
+        int cur = n->child;
+        while (cur >= 0) {
+            emit_stmt(ctx, cur);
+            cur = ctx->hir->data[cur].next;
+        }
+        break;
+    }
+    case HIR_VARDECL:
+        /* Alloca already emitted in entry block. Handle initializer store. */
+        if (n->child >= 0) {
+            const char *ptr = ctx->alloca_map[idx];
+            char rhs_buf[64];
+            const char *rhs = emit_expr(ctx, n->child);
+            snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs);
+            const char *ty = llvm_ty(n->type);
+            fprintf(ctx->f, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
+        }
+        break;
+
+    case HIR_ASSIGN: {
+        int target_idx = n->child;
+        int decl_idx = (int)ctx->hir->data[target_idx].iv;
+        const char *ptr = ctx->alloca_map[decl_idx];
+
+        int rhs_idx = ctx->hir->data[target_idx].next;
+        char rhs_buf[64];
+        const char *rhs = emit_expr(ctx, rhs_idx);
+        snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs);
+
+        const char *ty = llvm_ty(ctx->hir->data[target_idx].type);
+        fprintf(ctx->f, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
+        break;
+    }
+
+    case HIR_RETURN:
+        if (n->child < 0) {
+            fprintf(ctx->f, "  ret void\n");
+        } else {
+            char val_buf[64];
+            const char *val = emit_expr(ctx, n->child);
+            snprintf(val_buf, sizeof(val_buf), "%s", val);
+            type_tag ret_ty = (n->type != TYPE_VOID) ? n->type
+                                                     : ctx->func_ret_type;
+            const char *ty = llvm_ty(ret_ty);
+            fprintf(ctx->f, "  ret %s %s\n", ty, val_buf);
+        }
+        break;
+
+    case HIR_IF: {
+        int scrutinee_idx = n->child;
+        char scr_buf[64];
+        const char *scr_reg = emit_expr(ctx, scrutinee_idx);
+        snprintf(scr_buf, sizeof(scr_buf), "%s", scr_reg);
+
+        type_tag scr_type = ctx->hir->data[scrutinee_idx].type;
+        char merge_label[64];
+        snprintf(merge_label, sizeof(merge_label), "%s", cg_new_label(ctx, "if_merge"));
+
+        if (can_use_switch(ctx, idx, scr_type)) {
+            emit_if_switch(ctx, idx, scr_buf, scr_type, merge_label);
+        } else {
+            emit_if_chain(ctx, idx, scr_buf, scr_type, merge_label);
+        }
+
+        fprintf(ctx->f, "\n%s:\n", merge_label);
+        break;
+    }
+
+    case HIR_WHILE: {
+        int cond_idx = n->child;
+        int body_idx = (cond_idx >= 0) ? ctx->hir->data[cond_idx].next : -1;
+
+        char cond_label[64], body_label[64], exit_label[64];
+        snprintf(cond_label, sizeof(cond_label), "%s", cg_new_label(ctx, "while_cond"));
+        snprintf(body_label, sizeof(body_label), "%s", cg_new_label(ctx, "while_body"));
+        snprintf(exit_label, sizeof(exit_label), "%s", cg_new_label(ctx, "while_exit"));
+
+        fprintf(ctx->f, "  br label %%%s\n", cond_label);
+
+        fprintf(ctx->f, "\n%s:\n", cond_label);
+        char cond_buf[64];
+        const char *cond_reg = emit_expr(ctx, cond_idx);
+        snprintf(cond_buf, sizeof(cond_buf), "%s", cond_reg);
+
+        type_tag cond_type = ctx->hir->data[cond_idx].type;
+        const char *ty = llvm_ty(cond_type);
+        const char *bool_reg = cg_new_reg(ctx);
+        fprintf(ctx->f, "  %s = icmp ne %s %s, 0\n", bool_reg, ty, cond_buf);
+        fprintf(ctx->f, "  br i1 %s, label %%%s, label %%%s\n",
+                bool_reg, body_label, exit_label);
+
+        fprintf(ctx->f, "\n%s:\n", body_label);
+        emit_stmt(ctx, body_idx);
+        fprintf(ctx->f, "  br label %%%s\n", cond_label);
+
+        fprintf(ctx->f, "\n%s:\n", exit_label);
+        break;
+    }
+
+    case HIR_LOOP: {
+        char body_label[64];
+        snprintf(body_label, sizeof(body_label), "%s", cg_new_label(ctx, "loop_body"));
+
+        fprintf(ctx->f, "  br label %%%s\n", body_label);
+        fprintf(ctx->f, "\n%s:\n", body_label);
+        emit_stmt(ctx, n->child);
+        fprintf(ctx->f, "  br label %%%s\n", body_label);
+        break;
+    }
+
+    default:
+        break;
+    }
+}

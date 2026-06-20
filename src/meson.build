@@ -15,6 +15,8 @@ lib_srcs = files(
   'sema/sema_stmt.c',
   'sema/sema_expr.c',
   'codegen/codegen.c',
+  'codegen/codegen_expr.c',
+  'codegen/codegen_stmt.c',
 )
 
 reic_lib = static_library('reic',
