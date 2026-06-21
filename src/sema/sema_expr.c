@@ -104,8 +104,6 @@ void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
     annot->data[target_idx].type = found->var.type;
     annot->data[target_idx].decl_idx = found->var.ast_idx;
 
-    if (target_idx < 0)
-        return;
     rhs_type = sema_expr(nodes, stack, nodes.data[target_idx].next, diags,
                          annot);
     if (rhs_type != TYPE_VOID && found->var.type != TYPE_VOID) {

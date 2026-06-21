@@ -77,4 +77,7 @@ DECLARE_VECTOR(token, token)
  */
 char *token_print(token token_);
 
+/* Returns the display symbol for an operator token type (e.g. TK_ADD -> "+"). */
+const char *binop_symbol(tktype op);
+
 #endif /* TOKEN_TOKEN_H */

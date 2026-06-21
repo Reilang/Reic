@@ -32,21 +32,34 @@ static void src_back(lexer *l)
     l->src_.col--;
 }
 
-static void emit_tok(lexer *l, token_vector *tokens, tktype type, int line, int col)
+static char read_escape(lexer *l)
+{
+    char cur = nextch(l);
+    switch (cur) {
+    case 'n':  return '\n';
+    case 't':  return '\t';
+    case 'r':  return '\r';
+    case '\\': return '\\';
+    case '"':  return '"';
+    case '\'': return '\'';
+    case '0':  return '\0';
+    default:   return cur;
+    }
+}
+
+static void emit_tok(token_vector *tokens, tktype type, int line, int col)
 {
     token tk = {0};
-    (void)l;
     tk.type = type;
     tk.line = line;
     tk.col = col;
     token_vec_push(tokens, tk);
 }
 
-static void emit_tok_str(lexer *l, token_vector *tokens, tktype type,
+static void emit_tok_str(token_vector *tokens, tktype type,
                          const char *str, int line, int col)
 {
     token tk = {0};
-    (void)l;
     tk.type = type;
     tk.line = line;
     tk.col = col;
@@ -54,6 +67,14 @@ static void emit_tok_str(lexer *l, token_vector *tokens, tktype type,
     if (!tk.value.string)
         abort();
     token_vec_push(tokens, tk);
+}
+
+static void handle_newline(lexer *l, token_vector *tokens)
+{
+    if (l->paren_depth == 0)
+        emit_tok(tokens, TK_NEXTLINE, l->src_.line, l->src_.col);
+    l->src_.line++;
+    l->src_.col = 0;
 }
 
 void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
@@ -80,16 +101,12 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 break;
 
             if (cur == '\n') {
-                if (l->paren_depth == 0)
-                    emit_tok(l, tokens, TK_NEXTLINE, l->src_.line,
-                             l->src_.col);
-                l->src_.line++;
-                l->src_.col = 0;
+                handle_newline(l, tokens);
                 break;
             }
 
             if (cur == '\0') {
-                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.col);
+                emit_tok(tokens, TK_EOF, l->src_.line, l->src_.col);
                 l->state = LSTATE_END;
                 break;
             }
@@ -99,29 +116,29 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 || cur == '-' || cur == '*' || cur == '/' || cur == ':'
                 || cur == '=' || cur == '<' || cur == '>' || cur == '!') {
                 switch (cur) {
-                case '+': emit_tok(l, tokens, TK_ADD,       sline, scol); break;
-                case '-': emit_tok(l, tokens, TK_MINUS,     sline, scol); break;
-                case '*': emit_tok(l, tokens, TK_STAR,      sline, scol); break;
-                case '/': emit_tok(l, tokens, TK_SLASH,     sline, scol); break;
-                case '=': emit_tok(l, tokens, TK_EQUAL,     sline, scol); break;
+                case '+': emit_tok(tokens, TK_ADD,       sline, scol); break;
+                case '-': emit_tok(tokens, TK_MINUS,     sline, scol); break;
+                case '*': emit_tok(tokens, TK_STAR,      sline, scol); break;
+                case '/': emit_tok(tokens, TK_SLASH,     sline, scol); break;
+                case '=': emit_tok(tokens, TK_EQUAL,     sline, scol); break;
                 case '(':
-                    emit_tok(l, tokens, TK_OPAREN, sline, scol);
+                    emit_tok(tokens, TK_OPAREN, sline, scol);
                     l->paren_depth++;
                     break;
                 case ')':
-                    emit_tok(l, tokens, TK_CPAREN, sline, scol);
+                    emit_tok(tokens, TK_CPAREN, sline, scol);
                     if (l->paren_depth > 0)
                         l->paren_depth--;
                     break;
-                case ',': emit_tok(l, tokens, TK_COMMA,     sline, scol); break;
-                case '[': emit_tok(l, tokens, TK_OBRACKET,  sline, scol); break;
-                case ']': emit_tok(l, tokens, TK_CBRACKET,  sline, scol); break;
-                case '{': emit_tok(l, tokens, TK_OBRACE,    sline, scol); break;
-                case '}': emit_tok(l, tokens, TK_CBRACE,    sline, scol); break;
-                case ':': emit_tok(l, tokens, TK_COLON,     sline, scol); break;
-                case '<': emit_tok(l, tokens, TK_OABRACKET, sline, scol); break;
-                case '>': emit_tok(l, tokens, TK_CABRACKET, sline, scol); break;
-                case '!': emit_tok(l, tokens, TK_NOT,       sline, scol); break;
+                case ',': emit_tok(tokens, TK_COMMA,     sline, scol); break;
+                case '[': emit_tok(tokens, TK_OBRACKET,  sline, scol); break;
+                case ']': emit_tok(tokens, TK_CBRACKET,  sline, scol); break;
+                case '{': emit_tok(tokens, TK_OBRACE,    sline, scol); break;
+                case '}': emit_tok(tokens, TK_CBRACE,    sline, scol); break;
+                case ':': emit_tok(tokens, TK_COLON,     sline, scol); break;
+                case '<': emit_tok(tokens, TK_OABRACKET, sline, scol); break;
+                case '>': emit_tok(tokens, TK_CABRACKET, sline, scol); break;
+                case '!': emit_tok(tokens, TK_NOT,       sline, scol); break;
                 default:  l->state = LSTATE_ERROR; continue;
                 }
                 break;
@@ -188,7 +205,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                         break;
                     }
                 }
-                emit_tok_str(l, tokens, t, l->rdbuf, sline, scol);
+                emit_tok_str(tokens, t, l->rdbuf, sline, scol);
             }
             l->state = LSTATE_NORMAL;
             break;
@@ -229,22 +246,12 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '.' && memchr(l->rdbuf, '.', (size_t)pos) != NULL) {
                 diag_add(diags, LEVEL_ERROR, "duplicate dot in float literal",
                          sline, scol);
-                l->rdbuf[pos] = '\0';
-                {
-                    token tk = {0};
-                    tk.type = TK_FLITER;
-                    tk.line = sline;
-                    tk.col = scol;
-                    tk.value.float_ = strtod(l->rdbuf, NULL);
-                    token_vec_push(tokens, tk);
-                }
                 while (*(l->src_.raw) && *(l->src_.raw) != ' '
                        && *(l->src_.raw) != '\t' && *(l->src_.raw) != '\n'
                        && *(l->src_.raw) != '\r') {
                     nextch(l);
                 }
-                l->state = LSTATE_NORMAL;
-                break;
+                goto emit_fliter;
             }
             if (pos > 0 && l->rdbuf[pos - 1] == '.') {
                 {
@@ -254,23 +261,14 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                              cur, (unsigned char)cur);
                     diag_add(diags, LEVEL_ERROR, fbuf, sline, scol);
                 }
-                l->rdbuf[pos] = '\0';
-                {
-                    token tk = {0};
-                    tk.type = TK_FLITER;
-                    tk.line = sline;
-                    tk.col = scol;
-                    tk.value.float_ = strtod(l->rdbuf, NULL);
-                    token_vec_push(tokens, tk);
-                }
                 if (cur == '\n') {
                     l->src_.line++;
                     l->src_.col = 0;
                 }
-                l->state = LSTATE_NORMAL;
-                break;
+                goto emit_fliter;
             }
             src_back(l);
+        emit_fliter:
             l->rdbuf[pos] = '\0';
             {
                 token tk = {0};
@@ -289,28 +287,18 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 diag_add(diags, LEVEL_ERROR, "unterminated string literal",
                          sline, scol);
                 l->rdbuf[pos] = '\0';
-                emit_tok_str(l, tokens, TK_SLITER, l->rdbuf, sline, scol);
+                emit_tok_str(tokens, TK_SLITER, l->rdbuf, sline, scol);
                 l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '"') {
                 l->rdbuf[pos] = '\0';
-                emit_tok_str(l, tokens, TK_SLITER, l->rdbuf, sline, scol);
+                emit_tok_str(tokens, TK_SLITER, l->rdbuf, sline, scol);
                 l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '\\') {
-                cur = nextch(l);
-                switch (cur) {
-                case 'n':  cur = '\n'; break;
-                case 't':  cur = '\t'; break;
-                case 'r':  cur = '\r'; break;
-                case '\\': cur = '\\'; break;
-                case '"':  cur = '"';  break;
-                case '\'': cur = '\''; break;
-                case '0':  cur = '\0'; break;
-                default:               break;
-                }
+                cur = read_escape(l);
                 if (pos < 255)
                     l->rdbuf[pos++] = cur;
                 break;
@@ -330,23 +318,13 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '\'') {
                 diag_add(diags, LEVEL_ERROR, "empty character literal",
                          sline, scol);
-                emit_tok(l, tokens, TK_CLITER, sline, scol);
+                emit_tok(tokens, TK_CLITER, sline, scol);
                 tokens->data[tokens->size - 1].value.char_ = '\0';
                 l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '\\') {
-                cur = nextch(l);
-                switch (cur) {
-                case 'n':  cur = '\n'; break;
-                case 't':  cur = '\t'; break;
-                case 'r':  cur = '\r'; break;
-                case '\\': cur = '\\'; break;
-                case '\'': cur = '\''; break;
-                case '"':  cur = '"';  break;
-                case '0':  cur = '\0'; break;
-                default:               break;
-                }
+                cur = read_escape(l);
             }
             l->rdbuf[0] = cur;
             cur = nextch(l);
@@ -356,7 +334,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 l->state = LSTATE_NORMAL;
                 break;
             }
-            emit_tok(l, tokens, TK_CLITER, sline, scol);
+            emit_tok(tokens, TK_CLITER, sline, scol);
             tokens->data[tokens->size - 1].value.char_ = l->rdbuf[0];
             l->state = LSTATE_NORMAL;
             break;
@@ -364,16 +342,12 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
         case LSTATE_COMMENT:
             cur = nextch(l);
             if (cur == '\0') {
-                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.col);
+                emit_tok(tokens, TK_EOF, l->src_.line, l->src_.col);
                 l->state = LSTATE_END;
                 break;
             }
             if (cur == '\n') {
-                if (l->paren_depth == 0)
-                    emit_tok(l, tokens, TK_NEXTLINE, l->src_.line,
-                             l->src_.col);
-                l->src_.line++;
-                l->src_.col = 0;
+                handle_newline(l, tokens);
                 l->state = LSTATE_NORMAL;
             }
             break;
