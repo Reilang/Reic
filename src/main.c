@@ -46,14 +46,12 @@ int main(void)
     node_vector nodes;
     int i;
 
-    /* lex */
     lexer_.src_.raw = src_raw;
     token_vec_new(&tokens, 16);
     diag_vec_new(&diags, 4);
 
     tokenize(&lexer_, &tokens, &diags);
 
-    /* parse */
     parser_.tokens = tokens;
     parser_.cursor = 0;
     state_vec_new(&parser_.states, 8);
@@ -88,8 +86,7 @@ int main(void)
         }
     }
 
-    /* semantic analysis */
-    sema_vector annotations = sema_check(nodes, &diags);
+    sema_vector annot = sema_check(nodes, &diags);
 
     printf("\nsema diagnostics (%d):\n", diags.size);
     for (i = 0; i < diags.size; i++) {
@@ -100,8 +97,7 @@ int main(void)
         }
     }
 
-    /* HIR lowering */
-    hir_vector hir = hir_lower(nodes, &annotations);
+    hir_vector hir = hir_lower(nodes, &annot);
     printf("\nHIR:\n");
     {
         char *tree = hir_print_tree(hir);
@@ -111,7 +107,6 @@ int main(void)
         }
     }
 
-    /* codegen */
     {
         bool has_errors = false;
         for (i = 0; i < diags.size; i++) {
@@ -128,13 +123,11 @@ int main(void)
         }
     }
 
-    /* cleanup */
-    /* In fact, OS will do this:-) */
     state_vec_free(&parser_.states);
     node_vec_free(&nodes);
     token_vec_free(&tokens);
     diag_vec_free(&diags);
-    sema_vec_free(&annotations);
+    sema_vec_free(&annot);
     hir_vec_free(&hir);
 
     return EXIT_SUCCESS;

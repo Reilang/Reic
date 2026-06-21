@@ -17,8 +17,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---- token cursor helpers ---- */
-
 token curtok(const parser *p)
 {
     if (p->cursor >= p->tokens.size) {
@@ -41,8 +39,6 @@ void skip_newlines(parser *p)
            && token_vec_get(&p->tokens, p->cursor).type == TK_NEXTLINE)
         p->cursor++;
 }
-
-/* ---- node allocation helpers ---- */
 
 int new_node(node_vector *nodes, anode_kind kind)
 {
@@ -75,8 +71,6 @@ void sync(parser *p)
     }
 }
 
-/* ---- block body ---- */
-
 /*
  * Parse statements inside a braced block.  The caller must consume the opening
  * brace and push PSTATE_BLOCK before calling this function.
@@ -99,7 +93,7 @@ int parse_block_body(parser *p, node_vector *nodes, diag_vector *diags,
             snprintf(efbuf, sizeof(efbuf), "unexpected end of file in %s",
                      context);
             diag_add(diags, LEVEL_ERROR, efbuf,
-                     curtok(p).line, curtok(p).column);
+                     curtok(p).line, curtok(p).col);
             break;
         }
 
@@ -132,8 +126,6 @@ int parse_block_body(parser *p, node_vector *nodes, diag_vector *diags,
     return block_idx;
 }
 
-/* ---- main entry point ---- */
-
 void parse(parser *p, node_vector *nodes, diag_vector *diags)
 {
     while (p->cursor < p->tokens.size) {
@@ -145,7 +137,7 @@ void parse(parser *p, node_vector *nodes, diag_vector *diags)
             token tk = curtok(p);
             if (tk.type == TK_CBRACE) {
                 diag_add(diags, LEVEL_ERROR, "unexpected '}'",
-                        tk.line, tk.column);
+                        tk.line, tk.col);
                 p->cursor++;
             } else if (tk.type == TK_OBRACE) {
                 p->cursor++;

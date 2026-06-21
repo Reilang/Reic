@@ -45,7 +45,7 @@ int parse_stmt(parser *p, node_vector *nodes, diag_vector *diags)
     }
 
     diag_add(diags, LEVEL_ERROR, "expected statement",
-            tk.line, tk.column);
+            tk.line, tk.col);
     sync(p);
     return -1;
 }
@@ -62,7 +62,7 @@ int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OPAREN) {
         diag_add(diags, LEVEL_ERROR, "expected '(' after 'if'",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -73,7 +73,7 @@ int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
 
     if (curtok(p).type != TK_CPAREN) {
         diag_add(diags, LEVEL_ERROR, "expected ')' after if condition",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -82,7 +82,7 @@ int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OBRACE) {
         diag_add(diags, LEVEL_ERROR, "expected '{' before if body",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -101,7 +101,7 @@ int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
 
         if (!is_arm_op(tk.type)) {
             diag_add(diags, LEVEL_ERROR, "expected match arm operator",
-                     tk.line, tk.column);
+                     tk.line, tk.col);
             sync(p);
             if (arm_head < 0) return -1;
             break;
@@ -116,7 +116,7 @@ int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
         /* '=>' */
         if (curtok(p).type != TK_EQUAL) {
             diag_add(diags, LEVEL_ERROR, "expected '=>' after match pattern",
-                     curtok(p).line, curtok(p).column);
+                     curtok(p).line, curtok(p).col);
             sync(p);
             return -1;
         }
@@ -125,7 +125,7 @@ int parse_if(parser *p, node_vector *nodes, diag_vector *diags)
         if (curtok(p).type != TK_CABRACKET) {
             diag_add(diags, LEVEL_ERROR,
                      "expected '=>' (missing '>' after '=')",
-                     curtok(p).line, curtok(p).column);
+                     curtok(p).line, curtok(p).col);
             sync(p);
             return -1;
         }
@@ -181,7 +181,7 @@ int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OPAREN) {
         diag_add(diags, LEVEL_ERROR, "expected '(' after 'while'",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -192,7 +192,7 @@ int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
 
     if (curtok(p).type != TK_CPAREN) {
         diag_add(diags, LEVEL_ERROR, "expected ')' after while condition",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -201,7 +201,7 @@ int parse_while(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OBRACE) {
         diag_add(diags, LEVEL_ERROR, "expected '{' before while body",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -226,7 +226,7 @@ int parse_loop(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OBRACE) {
         diag_add(diags, LEVEL_ERROR, "expected '{' after 'loop'",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }

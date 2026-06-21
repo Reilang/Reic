@@ -13,8 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---------- helpers ---------- */
-
 typedef struct {
     lexer lexer_;
     token_vector tokens;
@@ -39,8 +37,6 @@ static void lex_free(LexFixture *fx)
     token_vec_free(&fx->tokens);
     diag_vec_free(&fx->diags);
 }
-
-/* ---------- tests ---------- */
 
 static void test_keywords(void)
 {
@@ -235,8 +231,6 @@ static void test_paren_suppresses_newline(void)
 
     lex_free(&fx);
 }
-
-/* ---------- main ---------- */
 
 int main(void)
 {

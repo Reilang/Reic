@@ -4,7 +4,7 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * codegen_internal.h — Shared declarations for codegen translation units.
  *
- * NOT part of the public API.  Included only by codegen/*.c files.
+ * NOT part of the public API.  Included only by codegen translation units.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 #ifndef CODEGEN_CODEGEN_INTERNAL_H

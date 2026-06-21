@@ -4,8 +4,8 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * lexer.h — Source representation and lexer state for the tokenizer.
  *
- * The src struct tracks raw input text and the current line/column cursor.
- * The lexer struct wraps src with a working buffer (readnow) used during
+ * The src struct tracks raw input text and the current line/col cursor.
+ * The lexer struct wraps src with a working buffer (rdbuf) used during
  * token construction.  The tokenize() entry point converts raw source into
  * a stream of tokens and diagnostics.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -34,26 +34,26 @@ typedef enum {
 
 /*
  * Source text handle.  .raw is advanced by the lexer during scanning;
- * .line and .column track the current position for diagnostics.
+ * .line and .col track the current position for diagnostics.
  */
 typedef struct {
     char *raw;        /* pointer into the source buffer (mutated during scan) */
     int line;         /* 1-based */
-    int column;       /* 0-based */
+    int col;          /* 0-based */
 } src;
 
 /*
  * Lexer instance.
  *
  *   state       — current state-machine state
- *   readnow     — working buffer for the token being built (max 255 chars)
+ *   rdbuf     — working buffer for the token being built (max 255 chars)
  *   src_        — source text handle
  *   paren_depth — nesting depth of ( ) — when > 0, newlines are suppressed
  *                 so that multi-line expressions inside parens work naturally
  */
 typedef struct {
     lstate state;
-    char readnow[256];
+    char rdbuf[256];
     src src_;
     int paren_depth;
 } lexer;

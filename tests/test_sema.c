@@ -19,15 +19,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---------- helpers ---------- */
-
 typedef struct {
     lexer lexer_;
     token_vector tokens;
     diag_vector diags;
     parser parser_;
     node_vector nodes;
-    sema_vector annotations;
+    sema_vector annot;
 } SemaFixture;
 
 static void sema_init(SemaFixture *fx, char *src_raw)
@@ -50,12 +48,12 @@ static void sema_init(SemaFixture *fx, char *src_raw)
 
 static void sema_run(SemaFixture *fx)
 {
-    fx->annotations = sema_check(fx->nodes, &fx->diags);
+    fx->annot = sema_check(fx->nodes, &fx->diags);
 }
 
 static void sema_free(SemaFixture *fx)
 {
-    sema_vec_free(&fx->annotations);
+    sema_vec_free(&fx->annot);
     state_vec_free(&fx->parser_.states);
     node_vec_free(&fx->nodes);
     token_vec_free(&fx->tokens);
@@ -70,8 +68,6 @@ static int count_diags_at(const diag_vector *diags, level lv)
         if (diags->data[i].level_ >= lv) n++;
     return n;
 }
-
-/* ---------- tests ---------- */
 
 static void test_var_resolve_ok(void)
 {
@@ -181,8 +177,6 @@ static void test_if_arm_scope(void)
 
     sema_free(&fx);
 }
-
-/* ---------- main ---------- */
 
 int main(void)
 {

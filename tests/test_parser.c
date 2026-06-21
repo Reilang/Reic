@@ -17,8 +17,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---------- helpers ---------- */
-
 typedef struct {
     lexer lexer_;
     token_vector tokens;
@@ -65,8 +63,6 @@ static int count_kind(const node_vector *nodes, anode_kind kind)
         if (nodes->data[i].kind == kind) n++;
     return n;
 }
-
-/* ---------- tests ---------- */
 
 static void test_funcdef(void)
 {
@@ -215,8 +211,6 @@ static void test_constdecl(void)
 
     parse_free(&fx);
 }
-
-/* ---------- main ---------- */
 
 int main(void)
 {

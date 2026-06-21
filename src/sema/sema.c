@@ -24,8 +24,6 @@ static bool sema_sym_eq(sym_entry a, sym_entry b)
     return strcmp(a.key, b.key) == 0;
 }
 
-/* ---- scope helpers ---- */
-
 sym_set *cur_scope(sym_set_vector *stack)
 {
     return &stack->data[stack->size - 1];
@@ -139,8 +137,6 @@ void scope_leave(sym_set_vector *stack, diag_vector *diags)
     sym_set_free(&top);
 }
 
-/* ---- diagnostic helper ---- */
-
 void diag_fmt(diag_vector *diags, level lv, int line, int col,
               const char *fmt, ...)
 {
@@ -151,8 +147,6 @@ void diag_fmt(diag_vector *diags, level lv, int line, int col,
     va_end(args);
     diag_add(diags, lv, buf, line, col);
 }
-
-/* ---- type helpers ---- */
 
 type_tag common_type(type_tag a, type_tag b)
 {
@@ -183,8 +177,6 @@ bool assignable_to(type_tag dst, type_tag src)
         return false;
     return di->width >= si->width;
 }
-
-/* ---- main entry point ---- */
 
 sema_vector sema_check(node_vector nodes, diag_vector *diags)
 {

@@ -13,12 +13,12 @@
 
 #include "diag/diag.h"
 
-void diag_add(diag_vector *diags, level lv, const char *msg, int line, int column)
+void diag_add(diag_vector *diags, level lv, const char *msg, int line, int col)
 {
     diag d = {0};
     snprintf(d.whaterr, sizeof(d.whaterr), "%s", msg);
     d.line = line;
-    d.column = column;
+    d.col = col;
     d.level_ = lv;
     diag_vec_push(diags, d);
 }
@@ -36,7 +36,7 @@ int has_level(const diag_vector *diags, level lv)
 
 char *diag_print(diag diag_)
 {
-    char* buffer = NULL;
+    char *buffer = NULL;
 
     buffer = (char*)malloc(512);
     if (!buffer)
@@ -44,19 +44,19 @@ char *diag_print(diag diag_)
     
     switch (diag_.level_) {
     case LEVEL_NOTE:
-        snprintf(buffer, 512, "[NOTE][%d:%d] %s", diag_.line, diag_.column,
+        snprintf(buffer, 512, "[NOTE][%d:%d] %s", diag_.line, diag_.col,
                 diag_.whaterr);
         break;
     case LEVEL_WARN:
-        snprintf(buffer, 512, "[WARN][%d:%d] %s", diag_.line, diag_.column,
+        snprintf(buffer, 512, "[WARN][%d:%d] %s", diag_.line, diag_.col,
                 diag_.whaterr);
         break;
     case LEVEL_ERROR:
-        snprintf(buffer, 512, "[ERROR][%d:%d] %s", diag_.line, diag_.column,
+        snprintf(buffer, 512, "[ERROR][%d:%d] %s", diag_.line, diag_.col,
                 diag_.whaterr);
         break;
     default:
-        snprintf(buffer, 512, "[UNKNOWN][%d:%d] ???", diag_.line, diag_.column);
+        snprintf(buffer, 512, "[UNKNOWN][%d:%d] ???", diag_.line, diag_.col);
     }
 
     return buffer;

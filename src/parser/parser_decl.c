@@ -27,7 +27,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     tk = curtok(p);
     if (tk.type != TK_IDENT) {
         diag_add(diags, LEVEL_ERROR, "expected function name after 'fn'",
-                tk.line, tk.column);
+                tk.line, tk.col);
         sync(p);
         return -1;
     }
@@ -37,7 +37,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OPAREN) {
         diag_add(diags, LEVEL_ERROR, "expected '(' after function name",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -48,7 +48,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
 
         if (at_eof(p)) {
             diag_add(diags, LEVEL_ERROR, "expected ')' to close parameter list",
-                     tk.line, tk.column);
+                     tk.line, tk.col);
             sync(p);
             return -1;
         }
@@ -56,7 +56,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         tk = curtok(p);
         if (tk.type != TK_IDENT) {
             diag_add(diags, LEVEL_ERROR, "expected parameter name",
-                    tk.line, tk.column);
+                    tk.line, tk.col);
             sync(p);
             return -1;
         }
@@ -65,7 +65,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
 
         if (curtok(p).type != TK_COLON) {
             diag_add(diags, LEVEL_ERROR, "expected ':' after parameter name",
-                     curtok(p).line, curtok(p).column);
+                     curtok(p).line, curtok(p).col);
             sync(p);
             return -1;
         }
@@ -74,7 +74,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         tk = curtok(p);
         if (tk.type != TK_IDENT) {
             diag_add(diags, LEVEL_ERROR, "expected type name",
-                    tk.line, tk.column);
+                    tk.line, tk.col);
             sync(p);
             return -1;
         }
@@ -82,7 +82,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             type_tag tag = type_from_name(tk.value.string);
             if (tag == TYPE_COUNT) {
                 diag_add(diags, LEVEL_ERROR, "unknown type name",
-                        tk.line, tk.column);
+                        tk.line, tk.col);
                 sync(p);
                 return -1;
             }
@@ -105,7 +105,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             p->cursor++;
         } else if (curtok(p).type != TK_CPAREN) {
             diag_add(diags, LEVEL_ERROR, "expected ',' or ')' after parameter",
-                     curtok(p).line, curtok(p).column);
+                     curtok(p).line, curtok(p).col);
             sync(p);
             return -1;
         }
@@ -115,7 +115,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_MINUS) {
         diag_add(diags, LEVEL_ERROR, "expected '->' after parameters",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -123,7 +123,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_CABRACKET) {
         diag_add(diags, LEVEL_ERROR, "expected '->' (missing '>' after '-')",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -133,7 +133,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     tk = curtok(p);
     if (tk.type != TK_IDENT) {
         diag_add(diags, LEVEL_ERROR, "expected return type after '->'",
-                tk.line, tk.column);
+                tk.line, tk.col);
         sync(p);
         return -1;
     }
@@ -141,7 +141,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         type_tag tag = type_from_name(tk.value.string);
         if (tag == TYPE_COUNT) {
             diag_add(diags, LEVEL_ERROR, "unknown type name",
-                    tk.line, tk.column);
+                    tk.line, tk.col);
             sync(p);
             return -1;
         }
@@ -153,7 +153,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_OBRACE) {
         diag_add(diags, LEVEL_ERROR, "expected '{' before function body",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -192,7 +192,7 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
     tk = curtok(p);
     if (tk.type != TK_IDENT) {
         diag_add(diags, LEVEL_ERROR, "expected variable name after 'var'",
-                tk.line, tk.column);
+                tk.line, tk.col);
         sync(p);
         return -1;
     }
@@ -203,7 +203,7 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_COLON) {
         diag_add(diags, LEVEL_ERROR, "expected ':' after variable name",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -226,7 +226,7 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
             type_tag tag = type_from_name(tk.value.string);
             if (tag == TYPE_COUNT) {
                 diag_add(diags, LEVEL_ERROR, "unknown type name",
-                        tk.line, tk.column);
+                        tk.line, tk.col);
                 sync(p);
                 return -1;
             }
@@ -242,7 +242,7 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
             skip_newlines(p);
             if (curtok(p).type != TK_EQUAL) {
                 diag_add(diags, LEVEL_ERROR, "expected ':=' after type",
-                         curtok(p).line, curtok(p).column);
+                         curtok(p).line, curtok(p).col);
                 sync(p);
                 return -1;
             }
@@ -253,7 +253,7 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
         }
     } else {
         diag_add(diags, LEVEL_ERROR, "expected type name or ':='",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }

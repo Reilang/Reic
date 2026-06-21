@@ -25,7 +25,7 @@ typedef enum {
 typedef struct {
     char whaterr[256];  /* human-readable message */
     int line;            /* 1-based source line */
-    int column;          /* 0-based column */
+    int col;             /* 0-based column */
     level level_;
 } diag;
 
@@ -35,7 +35,7 @@ DECLARE_VECTOR(diag, diag)
  * Appends a diagnostic to the vector.  msg is copied into whaterr[]
  * (truncated at 255 characters).
  */
-void diag_add(diag_vector *diags, level lv, const char *msg, int line, int column);
+void diag_add(diag_vector *diags, level lv, const char *msg, int line, int col);
 
 /* Returns non-zero if any diagnostic in the vector has at least the given level. */
 int has_level(const diag_vector *diags, level lv);

@@ -24,8 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---------- helpers ---------- */
-
 #define GOLDEN_PATH "test_output.ll"
 
 typedef struct {
@@ -34,7 +32,7 @@ typedef struct {
     diag_vector diags;
     parser parser_;
     node_vector nodes;
-    sema_vector annotations;
+    sema_vector annot;
     hir_vector hir;
 } GoldenFixture;
 
@@ -56,10 +54,10 @@ static void golden_init(GoldenFixture *fx, char *src_raw)
     parse(&fx->parser_, &fx->nodes, &fx->diags);
 
     /* sema */
-    fx->annotations = sema_check(fx->nodes, &fx->diags);
+    fx->annot = sema_check(fx->nodes, &fx->diags);
 
     /* lower */
-    fx->hir = hir_lower(fx->nodes, &fx->annotations);
+    fx->hir = hir_lower(fx->nodes, &fx->annot);
 }
 
 static int golden_run(GoldenFixture *fx)
@@ -100,15 +98,13 @@ static char *golden_read(const char *path)
 static void golden_free(GoldenFixture *fx)
 {
     hir_vec_free(&fx->hir);
-    sema_vec_free(&fx->annotations);
+    sema_vec_free(&fx->annot);
     state_vec_free(&fx->parser_.states);
     node_vec_free(&fx->nodes);
     token_vec_free(&fx->tokens);
     diag_vec_free(&fx->diags);
     remove(GOLDEN_PATH);
 }
-
-/* ---------- tests ---------- */
 
 static void test_simple_func(void)
 {
@@ -241,8 +237,6 @@ static void test_while_loop(void)
     free(ir);
     golden_free(&fx);
 }
-
-/* ---------- main ---------- */
 
 int main(void)
 {

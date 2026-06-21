@@ -22,14 +22,14 @@ char KEYWORDS[64][64] = {"if", "for", "while", "loop", "return", "fn", "var"};
 static char nextch(lexer *l)
 {
     char c = *(l->src_.raw++);
-    l->src_.column++;
+    l->src_.col++;
     return c;
 }
 
 static void src_back(lexer *l)
 {
     l->src_.raw--;
-    l->src_.column--;
+    l->src_.col--;
 }
 
 static void emit_tok(lexer *l, token_vector *tokens, tktype type, int line, int col)
@@ -38,7 +38,7 @@ static void emit_tok(lexer *l, token_vector *tokens, tktype type, int line, int 
     (void)l;
     tk.type = type;
     tk.line = line;
-    tk.column = col;
+    tk.col = col;
     token_vec_push(tokens, tk);
 }
 
@@ -49,7 +49,7 @@ static void emit_tok_str(lexer *l, token_vector *tokens, tktype type,
     (void)l;
     tk.type = type;
     tk.line = line;
-    tk.column = col;
+    tk.col = col;
     tk.value.string = strdup(str);
     if (!tk.value.string)
         abort();
@@ -64,7 +64,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
     int scol = 0;
 
     l->src_.line = 1;
-    l->src_.column = 0;
+    l->src_.col = 0;
     l->paren_depth = 0;
     l->state = LSTATE_NORMAL;
 
@@ -73,7 +73,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
 
         case LSTATE_NORMAL:
             sline = l->src_.line;
-            scol = l->src_.column;
+            scol = l->src_.col;
             cur = nextch(l);
 
             if (cur == ' ' || cur == '\t' || cur == '\r')
@@ -82,14 +82,14 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '\n') {
                 if (l->paren_depth == 0)
                     emit_tok(l, tokens, TK_NEXTLINE, l->src_.line,
-                             l->src_.column);
+                             l->src_.col);
                 l->src_.line++;
-                l->src_.column = 0;
+                l->src_.col = 0;
                 break;
             }
 
             if (cur == '\0') {
-                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.column);
+                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.col);
                 l->state = LSTATE_END;
                 break;
             }
@@ -134,18 +134,18 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
 
             if (isalpha(cur) || cur == '_') {
                 pos = 0;
-                l->readnow[pos++] = cur;
+                l->rdbuf[pos++] = cur;
                 sline = l->src_.line;
-                scol = l->src_.column - 1;
+                scol = l->src_.col - 1;
                 l->state = LSTATE_IDENT;
                 break;
             }
 
             if (isdigit(cur)) {
                 pos = 0;
-                l->readnow[pos++] = cur;
+                l->rdbuf[pos++] = cur;
                 sline = l->src_.line;
-                scol = l->src_.column - 1;
+                scol = l->src_.col - 1;
                 l->state = LSTATE_ILITER;
                 break;
             }
@@ -153,14 +153,14 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '"') {
                 pos = 0;
                 sline = l->src_.line;
-                scol = l->src_.column - 1;
+                scol = l->src_.col - 1;
                 l->state = LSTATE_SLITER;
                 break;
             }
 
             if (cur == '\'') {
                 sline = l->src_.line;
-                scol = l->src_.column - 1;
+                scol = l->src_.col - 1;
                 l->state = LSTATE_CLITER;
                 break;
             }
@@ -172,23 +172,23 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             cur = nextch(l);
             if (isalnum(cur) || cur == '_') {
                 if (pos < 255)
-                    l->readnow[pos++] = cur;
+                    l->rdbuf[pos++] = cur;
                 break;
             }
             src_back(l);
-            l->readnow[pos] = '\0';
+            l->rdbuf[pos] = '\0';
             {
                 int ki;
                 tktype t = TK_IDENT;
                 for (ki = 0; ki < 64; ki++) {
                     if (KEYWORDS[ki][0] == '\0')
                         continue;
-                    if (strcmp(l->readnow, KEYWORDS[ki]) == 0) {
+                    if (strcmp(l->rdbuf, KEYWORDS[ki]) == 0) {
                         t = TK_KEYWORD;
                         break;
                     }
                 }
-                emit_tok_str(l, tokens, t, l->readnow, sline, scol);
+                emit_tok_str(l, tokens, t, l->rdbuf, sline, scol);
             }
             l->state = LSTATE_NORMAL;
             break;
@@ -197,23 +197,23 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             cur = nextch(l);
             if (isdigit(cur)) {
                 if (pos < 255)
-                    l->readnow[pos++] = cur;
+                    l->rdbuf[pos++] = cur;
                 break;
             }
             if (cur == '.') {
                 if (pos < 255)
-                    l->readnow[pos++] = cur;
+                    l->rdbuf[pos++] = cur;
                 l->state = LSTATE_FLITER;
                 break;
             }
             src_back(l);
-            l->readnow[pos] = '\0';
+            l->rdbuf[pos] = '\0';
             {
                 token tk = {0};
                 tk.type = TK_ILITER;
                 tk.line = sline;
-                tk.column = scol;
-                tk.value.integer = (int64_t)strtoll(l->readnow, NULL, 10);
+                tk.col = scol;
+                tk.value.integer = (int64_t)strtoll(l->rdbuf, NULL, 10);
                 token_vec_push(tokens, tk);
             }
             l->state = LSTATE_NORMAL;
@@ -223,19 +223,19 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             cur = nextch(l);
             if (isdigit(cur)) {
                 if (pos < 255)
-                    l->readnow[pos++] = cur;
+                    l->rdbuf[pos++] = cur;
                 break;
             }
-            if (cur == '.' && memchr(l->readnow, '.', (size_t)pos) != NULL) {
+            if (cur == '.' && memchr(l->rdbuf, '.', (size_t)pos) != NULL) {
                 diag_add(diags, LEVEL_ERROR, "duplicate dot in float literal",
                          sline, scol);
-                l->readnow[pos] = '\0';
+                l->rdbuf[pos] = '\0';
                 {
                     token tk = {0};
                     tk.type = TK_FLITER;
                     tk.line = sline;
-                    tk.column = scol;
-                    tk.value.float_ = strtod(l->readnow, NULL);
+                    tk.col = scol;
+                    tk.value.float_ = strtod(l->rdbuf, NULL);
                     token_vec_push(tokens, tk);
                 }
                 while (*(l->src_.raw) && *(l->src_.raw) != ' '
@@ -246,7 +246,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 l->state = LSTATE_NORMAL;
                 break;
             }
-            if (pos > 0 && l->readnow[pos - 1] == '.') {
+            if (pos > 0 && l->rdbuf[pos - 1] == '.') {
                 {
                     char fbuf[128];
                     snprintf(fbuf, sizeof(fbuf),
@@ -254,30 +254,30 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                              cur, (unsigned char)cur);
                     diag_add(diags, LEVEL_ERROR, fbuf, sline, scol);
                 }
-                l->readnow[pos] = '\0';
+                l->rdbuf[pos] = '\0';
                 {
                     token tk = {0};
                     tk.type = TK_FLITER;
                     tk.line = sline;
-                    tk.column = scol;
-                    tk.value.float_ = strtod(l->readnow, NULL);
+                    tk.col = scol;
+                    tk.value.float_ = strtod(l->rdbuf, NULL);
                     token_vec_push(tokens, tk);
                 }
                 if (cur == '\n') {
                     l->src_.line++;
-                    l->src_.column = 0;
+                    l->src_.col = 0;
                 }
                 l->state = LSTATE_NORMAL;
                 break;
             }
             src_back(l);
-            l->readnow[pos] = '\0';
+            l->rdbuf[pos] = '\0';
             {
                 token tk = {0};
                 tk.type = TK_FLITER;
                 tk.line = sline;
-                tk.column = scol;
-                tk.value.float_ = strtod(l->readnow, NULL);
+                tk.col = scol;
+                tk.value.float_ = strtod(l->rdbuf, NULL);
                 token_vec_push(tokens, tk);
             }
             l->state = LSTATE_NORMAL;
@@ -288,14 +288,14 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '\0' || cur == '\n') {
                 diag_add(diags, LEVEL_ERROR, "unterminated string literal",
                          sline, scol);
-                l->readnow[pos] = '\0';
-                emit_tok_str(l, tokens, TK_SLITER, l->readnow, sline, scol);
+                l->rdbuf[pos] = '\0';
+                emit_tok_str(l, tokens, TK_SLITER, l->rdbuf, sline, scol);
                 l->state = LSTATE_NORMAL;
                 break;
             }
             if (cur == '"') {
-                l->readnow[pos] = '\0';
-                emit_tok_str(l, tokens, TK_SLITER, l->readnow, sline, scol);
+                l->rdbuf[pos] = '\0';
+                emit_tok_str(l, tokens, TK_SLITER, l->rdbuf, sline, scol);
                 l->state = LSTATE_NORMAL;
                 break;
             }
@@ -312,11 +312,11 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 default:               break;
                 }
                 if (pos < 255)
-                    l->readnow[pos++] = cur;
+                    l->rdbuf[pos++] = cur;
                 break;
             }
             if (pos < 255)
-                l->readnow[pos++] = cur;
+                l->rdbuf[pos++] = cur;
             break;
 
         case LSTATE_CLITER:
@@ -348,7 +348,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 default:               break;
                 }
             }
-            l->readnow[0] = cur;
+            l->rdbuf[0] = cur;
             cur = nextch(l);
             if (cur != '\'') {
                 diag_add(diags, LEVEL_ERROR, "unterminated character literal",
@@ -357,23 +357,23 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 break;
             }
             emit_tok(l, tokens, TK_CLITER, sline, scol);
-            tokens->data[tokens->size - 1].value.char_ = l->readnow[0];
+            tokens->data[tokens->size - 1].value.char_ = l->rdbuf[0];
             l->state = LSTATE_NORMAL;
             break;
 
         case LSTATE_COMMENT:
             cur = nextch(l);
             if (cur == '\0') {
-                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.column);
+                emit_tok(l, tokens, TK_EOF, l->src_.line, l->src_.col);
                 l->state = LSTATE_END;
                 break;
             }
             if (cur == '\n') {
                 if (l->paren_depth == 0)
                     emit_tok(l, tokens, TK_NEXTLINE, l->src_.line,
-                             l->src_.column);
+                             l->src_.col);
                 l->src_.line++;
-                l->src_.column = 0;
+                l->src_.col = 0;
                 l->state = LSTATE_NORMAL;
             }
             break;

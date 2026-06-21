@@ -5,7 +5,7 @@
  * token.h — Lexical token type definitions and the token data structure.
  *
  * Defines the token type enum covering identifiers, literals, operators,
- * delimiters, and EOF.  Each token carries its source position (line/column)
+ * delimiters, and EOF.  Each token carries its source position (line/col)
  * and a union value appropriate to its type.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
@@ -26,24 +26,24 @@ typedef enum {
     TK_SLITER,     /* string literal: "hello" */
     TK_CLITER,     /* character literal: 'x' */
 
-    TK_ADD,        /* + */
-    TK_MINUS,      /* - */
-    TK_STAR,       /* * */
-    TK_SLASH,      /* / */
-    TK_EQUAL,      /* = */
+    TK_ADD,
+    TK_MINUS,
+    TK_STAR,
+    TK_SLASH,
+    TK_EQUAL,
 
-    TK_OPAREN,     /* ( */
-    TK_CPAREN,     /* ) */
-    TK_OBRACKET,   /* [ */
-    TK_CBRACKET,   /* ] */
-    TK_OBRACE,     /* { */
-    TK_CBRACE,     /* } */
-    TK_COMMA,      /* , */
-    TK_OABRACKET,  /* < */
-    TK_CABRACKET,  /* > */
+    TK_OPAREN,
+    TK_CPAREN,
+    TK_OBRACKET,
+    TK_CBRACKET,
+    TK_OBRACE,
+    TK_CBRACE,
+    TK_COMMA,
+    TK_OABRACKET,
+    TK_CABRACKET,
 
-    TK_COLON,      /* : */
-    TK_NOT,        /* ! */
+    TK_COLON,
+    TK_NOT,
 
     TK_NEXTLINE,   /* logical newline (statement separator) */
     TK_EOF,        /* end of input */
@@ -66,7 +66,7 @@ typedef struct {
         char char_;       /* TK_CLITER */
     } value;
     int line;             /* 1-based source line */
-    int column;           /* 0-based column within the line */
+    int col;              /* 0-based column within the line */
 } token;
 
 DECLARE_VECTOR(token, token)

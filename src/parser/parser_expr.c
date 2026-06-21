@@ -40,7 +40,7 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
         skip_newlines(p);
         if (curtok(p).type != TK_CPAREN) {
             diag_add(diags, LEVEL_ERROR, "expected ')'",
-                     curtok(p).line, curtok(p).column);
+                     curtok(p).line, curtok(p).col);
             sync(p);
             return idx >= 0 ? idx : -1;
         }
@@ -49,7 +49,7 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
     }
 
     diag_add(diags, LEVEL_ERROR, "expected expression",
-             tk.line, tk.column);
+             tk.line, tk.col);
     sync(p);
     return -1;
 }
@@ -104,7 +104,7 @@ int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_COLON) {
         diag_add(diags, LEVEL_ERROR, "expected ':=' in assignment",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }
@@ -112,7 +112,7 @@ int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
     skip_newlines(p);
     if (curtok(p).type != TK_EQUAL) {
         diag_add(diags, LEVEL_ERROR, "expected ':=' in assignment (missing '=' after ':')",
-                 curtok(p).line, curtok(p).column);
+                 curtok(p).line, curtok(p).col);
         sync(p);
         return -1;
     }

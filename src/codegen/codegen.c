@@ -15,8 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---- string buffer ---- */
-
 /* Returns a pointer to a static buffer.  Callers must copy the result before
  * calling any function that may indirectly call buf_alloc() again (e.g. nested
  * emit_expr / emit_stmt).  Existing call sites already copy via snprintf into
@@ -26,8 +24,6 @@ char *buf_alloc(void)
     static char buf[64];
     return buf;
 }
-
-/* ---- type helpers ---- */
 
 const char *llvm_ty(type_tag tag)
 {
@@ -58,8 +54,6 @@ const char *cast_op(type_tag src, type_tag dst)
     return "bitcast";
 }
 
-/* ---- register / label name generation ---- */
-
 const char *cg_new_reg(CgCtx *ctx)
 {
     char *b = buf_alloc();
@@ -73,8 +67,6 @@ const char *cg_new_label(CgCtx *ctx, const char *prefix)
     snprintf(b, 64, "%s_%d", prefix, ctx->lbl_cnt++);
     return b;
 }
-
-/* ---- variable collection ---- */
 
 void collect_vardecls(CgCtx *ctx, int idx)
 {
@@ -90,8 +82,6 @@ void collect_vardecls(CgCtx *ctx, int idx)
         cur = ctx->hir->data[cur].next;
     }
 }
-
-/* ---- function emission ---- */
 
 static void emit_func(CgCtx *ctx, int func_idx)
 {
@@ -164,8 +154,6 @@ static void emit_func(CgCtx *ctx, int func_idx)
     ctx->alloca_map = NULL;
 }
 
-/* ---- program emission ---- */
-
 static void emit_program(CgCtx *ctx)
 {
     /* Find root HIR_FUNCDECL nodes (not referenced as child/next by others). */
@@ -184,8 +172,6 @@ static void emit_program(CgCtx *ctx)
 
     free(referenced);
 }
-
-/* ---- entry point ---- */
 
 int codegen_emit(hir_vector *hir, const char *output_path)
 {
