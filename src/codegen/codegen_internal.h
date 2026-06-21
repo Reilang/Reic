@@ -6,6 +6,23 @@
  *
  * NOT part of the public API.  Included only by codegen translation units.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+ * Copyright (C) 2026  LLLichlet
+ *
+ * This file is part of ReiC.
+ *
+ * ReiC is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * ReiC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with ReiC.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef CODEGEN_CODEGEN_INTERNAL_H
 #define CODEGEN_CODEGEN_INTERNAL_H
