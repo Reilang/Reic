@@ -77,12 +77,12 @@ void emit_if_switch(CgCtx *ctx, int if_idx, const char *scr_reg,
     }
 
     /* Emit switch. */
-    fprintf(ctx->f, "  switch %s %s, label %%%s [\n", ty, scr_reg, merge_label);
+    strbuf_addf(&ctx->sb, "  switch %s %s, label %%%s [\n", ty, scr_reg, merge_label);
     for (int i = 0; i < ncases; i++) {
-        fprintf(ctx->f, "    %s %d, label %%%s\n",
-                ty, case_vals[i], case_labels[i]);
+        strbuf_addf(&ctx->sb, "    %s %d, label %%%s\n",
+                    ty, case_vals[i], case_labels[i]);
     }
-    fprintf(ctx->f, "  ]\n");
+    strbuf_addf(&ctx->sb, "  ]\n");
 
     /* Emit arm bodies. */
     int case_i = 0;
@@ -90,7 +90,7 @@ void emit_if_switch(CgCtx *ctx, int if_idx, const char *scr_reg,
     while (arm >= 0) {
         hnode *a = &ctx->hir->data[arm];
         if (a->kind == HIR_MATCHARM) {
-            fprintf(ctx->f, "\n%s:\n", case_labels[case_i]);
+            strbuf_addf(&ctx->sb, "\n%s:\n", case_labels[case_i]);
 
             int pat_idx = a->child;
             int body = ctx->hir->data[pat_idx].next;
@@ -99,7 +99,7 @@ void emit_if_switch(CgCtx *ctx, int if_idx, const char *scr_reg,
                 body = ctx->hir->data[body].next;
             }
 
-            fprintf(ctx->f, "  br label %%%s\n", merge_label);
+            strbuf_addf(&ctx->sb, "  br label %%%s\n", merge_label);
             case_i++;
         }
         arm = a->next;
@@ -130,7 +130,7 @@ void emit_if_chain(CgCtx *ctx, int if_idx, const char *scr_reg,
     }
 
     if (narms == 0) {
-        fprintf(ctx->f, "  br label %%%s\n", merge_label);
+        strbuf_addf(&ctx->sb, "  br label %%%s\n", merge_label);
         return;
     }
 
@@ -154,23 +154,23 @@ void emit_if_chain(CgCtx *ctx, int if_idx, const char *scr_reg,
 
         const char *cond_reg = cg_new_reg(ctx);
         const char *cond = icmp_cond(arm_n->op, scr_signed);
-        fprintf(ctx->f, "  %s = icmp %s %s %s, %s\n",
-                cond_reg, cond, ty, scr_reg, pat_buf);
-        fprintf(ctx->f, "  br i1 %s, label %%%s, label %%%s\n",
-                cond_reg, arm_label, next_label);
+        strbuf_addf(&ctx->sb, "  %s = icmp %s %s %s, %s\n",
+                    cond_reg, cond, ty, scr_reg, pat_buf);
+        strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
+                    cond_reg, arm_label, next_label);
 
         /* Emit arm body. */
-        fprintf(ctx->f, "\n%s:\n", arm_label);
+        strbuf_addf(&ctx->sb, "\n%s:\n", arm_label);
         int body = ctx->hir->data[pat_idx].next;
         while (body >= 0) {
             emit_stmt(ctx, body);
             body = ctx->hir->data[body].next;
         }
-        fprintf(ctx->f, "  br label %%%s\n", merge_label);
+        strbuf_addf(&ctx->sb, "  br label %%%s\n", merge_label);
 
         /* Next check label (if not the last). */
         if (i + 1 < narms)
-            fprintf(ctx->f, "\n%s:\n", next_label);
+            strbuf_addf(&ctx->sb, "\n%s:\n", next_label);
     }
 }
 
@@ -197,7 +197,7 @@ void emit_stmt(CgCtx *ctx, int idx)
             const char *rhs = emit_expr(ctx, n->child);
             snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs);
             const char *ty = llvm_ty(n->type);
-            fprintf(ctx->f, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
+            strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
         }
         break;
 
@@ -212,20 +212,20 @@ void emit_stmt(CgCtx *ctx, int idx)
         snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs);
 
         const char *ty = llvm_ty(ctx->hir->data[target_idx].type);
-        fprintf(ctx->f, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
+        strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
         break;
     }
 
     case HIR_RETURN:
         if (n->child < 0) {
-            fprintf(ctx->f, "  ret void\n");
+            strbuf_addf(&ctx->sb, "  ret void\n");
         } else {
             char val_buf[64];
             const char *val = emit_expr(ctx, n->child);
             snprintf(val_buf, sizeof(val_buf), "%s", val);
             const Type *ret_ty = n->type ? n->type : ctx->func_ret_type;
             const char *ty = llvm_ty(ret_ty);
-            fprintf(ctx->f, "  ret %s %s\n", ty, val_buf);
+            strbuf_addf(&ctx->sb, "  ret %s %s\n", ty, val_buf);
         }
         break;
 
@@ -245,7 +245,7 @@ void emit_stmt(CgCtx *ctx, int idx)
             emit_if_chain(ctx, idx, scr_buf, scr_type, merge_label);
         }
 
-        fprintf(ctx->f, "\n%s:\n", merge_label);
+        strbuf_addf(&ctx->sb, "\n%s:\n", merge_label);
         break;
     }
 
@@ -258,9 +258,9 @@ void emit_stmt(CgCtx *ctx, int idx)
         snprintf(body_label, sizeof(body_label), "%s", cg_new_label(ctx, "while_body"));
         snprintf(exit_label, sizeof(exit_label), "%s", cg_new_label(ctx, "while_exit"));
 
-        fprintf(ctx->f, "  br label %%%s\n", cond_label);
+        strbuf_addf(&ctx->sb, "  br label %%%s\n", cond_label);
 
-        fprintf(ctx->f, "\n%s:\n", cond_label);
+        strbuf_addf(&ctx->sb, "\n%s:\n", cond_label);
         char cond_buf[64];
         const char *cond_reg = emit_expr(ctx, cond_idx);
         snprintf(cond_buf, sizeof(cond_buf), "%s", cond_reg);
@@ -268,15 +268,15 @@ void emit_stmt(CgCtx *ctx, int idx)
         const Type *cond_type = ctx->hir->data[cond_idx].type;
         const char *ty = llvm_ty(cond_type);
         const char *bool_reg = cg_new_reg(ctx);
-        fprintf(ctx->f, "  %s = icmp ne %s %s, 0\n", bool_reg, ty, cond_buf);
-        fprintf(ctx->f, "  br i1 %s, label %%%s, label %%%s\n",
-                bool_reg, body_label, exit_label);
+        strbuf_addf(&ctx->sb, "  %s = icmp ne %s %s, 0\n", bool_reg, ty, cond_buf);
+        strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
+                    bool_reg, body_label, exit_label);
 
-        fprintf(ctx->f, "\n%s:\n", body_label);
+        strbuf_addf(&ctx->sb, "\n%s:\n", body_label);
         emit_stmt(ctx, body_idx);
-        fprintf(ctx->f, "  br label %%%s\n", cond_label);
+        strbuf_addf(&ctx->sb, "  br label %%%s\n", cond_label);
 
-        fprintf(ctx->f, "\n%s:\n", exit_label);
+        strbuf_addf(&ctx->sb, "\n%s:\n", exit_label);
         break;
     }
 
@@ -284,10 +284,10 @@ void emit_stmt(CgCtx *ctx, int idx)
         char body_label[64];
         snprintf(body_label, sizeof(body_label), "%s", cg_new_label(ctx, "loop_body"));
 
-        fprintf(ctx->f, "  br label %%%s\n", body_label);
-        fprintf(ctx->f, "\n%s:\n", body_label);
+        strbuf_addf(&ctx->sb, "  br label %%%s\n", body_label);
+        strbuf_addf(&ctx->sb, "\n%s:\n", body_label);
         emit_stmt(ctx, n->child);
-        fprintf(ctx->f, "  br label %%%s\n", body_label);
+        strbuf_addf(&ctx->sb, "  br label %%%s\n", body_label);
         break;
     }
 

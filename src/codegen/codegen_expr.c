@@ -55,7 +55,7 @@ const char *emit_expr(CgCtx *ctx, int idx)
         const char *ptr = ctx->alloca_map[decl_idx];
         const char *ty = llvm_ty(n->type);
         const char *reg = cg_new_reg(ctx);
-        fprintf(ctx->f, "  %s = load %s, %s* %s\n", reg, ty, ty, ptr);
+        strbuf_addf(&ctx->sb, "  %s = load %s, %s* %s\n", reg, ty, ty, ptr);
         return reg;
     }
     case HIR_BINOP: {
@@ -93,16 +93,16 @@ const char *emit_expr(CgCtx *ctx, int idx)
             const char *cond = icmp_cond(n->op,
                                          type_is_signed(n->type));
             const char *cmp_res = cg_new_reg(ctx);
-            fprintf(ctx->f, "  %s = icmp %s %s %s, %s\n",
-                    cmp_res, cond, ty, lhs_buf, rhs_buf);
+            strbuf_addf(&ctx->sb, "  %s = icmp %s %s %s, %s\n",
+                        cmp_res, cond, ty, lhs_buf, rhs_buf);
             const char *res = cg_new_reg(ctx);
-            fprintf(ctx->f, "  %s = zext i1 %s to %s\n", res, cmp_res, ty);
+            strbuf_addf(&ctx->sb, "  %s = zext i1 %s to %s\n", res, cmp_res, ty);
             return res;
         }
 
         const char *res = cg_new_reg(ctx);
-        fprintf(ctx->f, "  %s = %s %s %s, %s\n",
-                res, opname, ty, lhs_buf, rhs_buf);
+        strbuf_addf(&ctx->sb, "  %s = %s %s %s, %s\n",
+                    res, opname, ty, lhs_buf, rhs_buf);
         return res;
     }
     case HIR_UNOP: {
@@ -111,11 +111,11 @@ const char *emit_expr(CgCtx *ctx, int idx)
         const char *res = cg_new_reg(ctx);
 
         if (n->op == TK_MINUS) {
-            fprintf(ctx->f, "  %s = sub %s 0, %s\n", res, ty, opnd);
+            strbuf_addf(&ctx->sb, "  %s = sub %s 0, %s\n", res, ty, opnd);
         } else if (n->op == TK_NOT) {
-            fprintf(ctx->f, "  %s = xor %s %s, -1\n", res, ty, opnd);
+            strbuf_addf(&ctx->sb, "  %s = xor %s %s, -1\n", res, ty, opnd);
         } else {
-            fprintf(ctx->f, "  %s = add %s %s, 0\n", res, ty, opnd);
+            strbuf_addf(&ctx->sb, "  %s = add %s %s, 0\n", res, ty, opnd);
         }
         return res;
     }
@@ -126,8 +126,8 @@ const char *emit_expr(CgCtx *ctx, int idx)
         const char *src_ty = llvm_ty(inner_type);
         const char *dst_ty = llvm_ty(n->type);
         const char *res = cg_new_reg(ctx);
-        fprintf(ctx->f, "  %s = %s %s %s to %s\n",
-                res, op, src_ty, inner, dst_ty);
+        strbuf_addf(&ctx->sb, "  %s = %s %s %s to %s\n",
+                    res, op, src_ty, inner, dst_ty);
         return res;
     }
     default:

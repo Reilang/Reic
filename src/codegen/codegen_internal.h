@@ -28,6 +28,7 @@
 #define CODEGEN_CODEGEN_INTERNAL_H
 
 #include "codegen/codegen.h"
+#include "collect/strbuf.h"
 #include "hir/hir.h"
 #include "type/type.h"
 
@@ -39,7 +40,7 @@
 /* ---- codegen context ---- */
 
 typedef struct {
-    FILE *f;
+    strbuf sb;
     hir_vector *hir;
     int lbl_cnt;
     int reg_cnt;

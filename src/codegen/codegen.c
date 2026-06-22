@@ -134,35 +134,35 @@ static void emit_func(CgCtx *ctx, int func_idx)
 
     /* Emit function header. */
     const char *ret_ty = llvm_ty(fn->type);
-    fprintf(ctx->f, "define %s @%s(", ret_ty, fn->sv);
+    strbuf_addf(&ctx->sb, "define %s @%s(", ret_ty, fn->sv);
     for (int i = 0; i < nparams; i++) {
         hnode *p = &ctx->hir->data[param_idx[i]];
-        if (i > 0) fprintf(ctx->f, ", ");
-        fprintf(ctx->f, "%s %%%s", llvm_ty(p->type), p->sv);
+        if (i > 0) strbuf_addf(&ctx->sb, ", ");
+        strbuf_addf(&ctx->sb, "%s %%%s", llvm_ty(p->type), p->sv);
     }
-    fprintf(ctx->f, ") {\nentry:\n");
+    strbuf_addf(&ctx->sb, ") {\nentry:\n");
 
     /* Emit allocas for all collected vars. */
     for (int i = 0; i < ctx->hir->size; i++) {
         if (ctx->alloca_map[i] == NULL) continue;
         hnode *v = &ctx->hir->data[i];
-        fprintf(ctx->f, "  %s = alloca %s\n",
-                ctx->alloca_map[i], llvm_ty(v->type));
+        strbuf_addf(&ctx->sb, "  %s = alloca %s\n",
+                    ctx->alloca_map[i], llvm_ty(v->type));
     }
 
     /* Store param values into their allocas. */
     for (int i = 0; i < nparams; i++) {
         hnode *p = &ctx->hir->data[param_idx[i]];
-        fprintf(ctx->f, "  store %s %%%s, %s* %s\n",
-                llvm_ty(p->type), p->sv,
-                llvm_ty(p->type), ctx->alloca_map[param_idx[i]]);
+        strbuf_addf(&ctx->sb, "  store %s %%%s, %s* %s\n",
+                    llvm_ty(p->type), p->sv,
+                    llvm_ty(p->type), ctx->alloca_map[param_idx[i]]);
     }
 
     /* Emit body (HIR_BLOCK). */
     if (body_idx >= 0)
         emit_stmt(ctx, body_idx);
 
-    fprintf(ctx->f, "}\n\n");
+    strbuf_addf(&ctx->sb, "}\n\n");
 
     /* Cleanup. */
     for (int i = 0; i < ctx->hir->size; i++)
@@ -192,14 +192,8 @@ static void emit_program(CgCtx *ctx)
 
 int codegen_emit(hir_vector *hir, const char *output_path)
 {
-    FILE *f = fopen(output_path, "w");
-    if (!f) {
-        fprintf(stderr, "codegen: cannot open '%s'\n", output_path);
-        return -1;
-    }
-
     CgCtx ctx;
-    ctx.f = f;
+    strbuf_init(&ctx.sb, 4096);
     ctx.hir = hir;
     ctx.lbl_cnt = 0;
     ctx.reg_cnt = 0;
@@ -208,6 +202,14 @@ int codegen_emit(hir_vector *hir, const char *output_path)
 
     emit_program(&ctx);
 
+    FILE *f = fopen(output_path, "w");
+    if (!f) {
+        fprintf(stderr, "codegen: cannot open '%s'\n", output_path);
+        strbuf_free(&ctx.sb);
+        return -1;
+    }
+    fwrite(ctx.sb.data, 1, ctx.sb.len, f);
     fclose(f);
+    strbuf_free(&ctx.sb);
     return 0;
 }
