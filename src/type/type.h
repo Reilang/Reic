@@ -2,12 +2,7 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |  R e i C                                                             |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * type.h — Unified type system: enum tag + metadata table.
- *
- * Every builtin type has a type_tag.  The TYPE_TABLE stores name, LLVM name,
- * bit width, and signedness for each tag.  All type queries go through
- * type_from_name() (parser side) or type_info_of() (codegen side) — string
- * comparison happens exactly once, at name resolution time.
+ * type.h — Unified type system: kinds, constructors, interning, LLVM mapping.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
  * Copyright (C) 2026  LLLichlet
@@ -33,55 +28,122 @@
 #include "collect/vector.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
-/*
- * Type tag enum.  Each tag indexes directly into TYPE_TABLE[].
- * TYPE_COUNT serves as the "not found" sentinel from type_from_name().
- */
 typedef enum {
-    TYPE_VOID,
+    TYPEK_PRIM,      /* void, bool, intN, natN, floatN      */
+    TYPEK_PTR,       /* *T                                  */
+    TYPEK_STRUCT,    /* struct { ... }                      */
+    TYPEK_ENUM,      /* enum { ... }   — tagged union       */
+    TYPEK_UNION,     /* union { ... }  — untagged union     */
+    TYPEK_SESSION,   /* session { protocol }                */
+    TYPEK_TYPE,      /* TYPE — meta-type of all types       */
+} TypeKind;
 
-    TYPE_I8,
-    TYPE_I16,
-    TYPE_I32,
-    TYPE_I64,
+typedef enum {
+    PRIM_VOID,
+    PRIM_BOOL,
+    PRIM_INT,
+    PRIM_NAT,
+    PRIM_FLOAT,
+} PrimKind;
 
-    TYPE_U8,
-    TYPE_U16,
-    TYPE_U32,
-    TYPE_U64,
+typedef enum {
+    SESS_SEND,       /* !T.cont                              */
+    SESS_RECV,       /* ?T.cont                              */
+    SESS_OFFER,      /* Offer { l1: S1, l2: S2 }.cont        */
+    SESS_CHOOSE,     /* Choose { l1: S1, l2: S2 }.cont       */
+    SESS_END,        /* session termination                  */
+} SessionKind;
 
-    TYPE_COUNT
-} type_tag;
+typedef struct Type Type;
+struct Type {
+    TypeKind kind;
+    bool is_lin;
+    int id;
+    const char *name;       /* debug name, not used for equality */
 
-/*
- * Type metadata — single source of truth for each builtin type.
- * All other modules consult this table instead of hardcoding type logic.
- */
-typedef struct {
-    type_tag tag;
-    const char *name;       /* Rei source name, e.g. "int32" */
-    const char *llvm_name;  /* LLVM IR type, e.g. "i32" */
-    int width;              /* bit width (0 for void) */
-    bool is_signed;         /* true for int*, false for nat* and void */
-} type_info;
+    union {
+        /* TYPEK_PRIM */
+        struct {
+            PrimKind prim;
+            int width;      /* bit width; 0 for void and bool */
+        };
+        /* TYPEK_PTR */
+        struct {
+            Type *pointee;
+        };
+        /* TYPEK_STRUCT / TYPEK_ENUM / TYPEK_UNION */
+        struct {
+            Type **field_types;
+            const char **field_names;
+            int field_count;
+        };
+        /* TYPEK_SESSION */
+        struct {
+            SessionKind sess_kind;
+            Type *sess_payload;
+            Type *sess_cont;
+            const char **sess_labels;
+            Type **sess_branches;
+            int sess_branch_count;
+        };
+        /* TYPEK_TYPE: no extra fields */
+    };
+};
 
-/* Type tag vector — used for function parameter lists, etc. */
-DECLARE_VECTOR(type_tag, type_tag)
+DECLARE_VECTOR(Type*, type_ptr)
 
-/* The builtin type table, indexed by type_tag. */
-extern const type_info TYPE_TABLE[];
+extern Type *TYPE_VOID;
+extern Type *TYPE_BOOL;
+extern Type *TYPE_I8,  *TYPE_I16,  *TYPE_I32,  *TYPE_I64;
+extern Type *TYPE_U8,  *TYPE_U16,  *TYPE_U32,  *TYPE_U64;
+extern Type *TYPE_F32, *TYPE_F64;
+extern Type *TYPE_TYPE;
 
-/*
- * Looks up a type name (Rei source string).  Returns the corresponding tag,
- * or TYPE_COUNT if the name is not a known builtin type.
- */
-type_tag type_from_name(const char *name);
+void type_sys_init(void);
 
-/*
- * Returns a pointer to the type_info for the given tag.
- * Falls back to TYPE_VOID for out-of-range tags.
- */
-const type_info *type_info_of(type_tag tag);
+Type *type_ptr_of(Type *pointee);
+
+Type *type_struct_new(const char *name,
+                      const char *const *field_names,
+                      Type **field_types,
+                      int field_count,
+                      bool is_lin);
+
+Type *type_enum_new(const char *name,
+                    const char *const *variant_names,
+                    Type **variant_types,
+                    int variant_count,
+                    bool is_lin_override,
+                    bool has_override);
+
+Type *type_union_new(const char *name,
+                     const char *const *field_names,
+                     Type **field_types,
+                     int field_count,
+                     bool is_lin_override,
+                     bool has_override);
+
+Type *type_session_send(Type *payload, Type *cont);
+Type *type_session_recv(Type *payload, Type *cont);
+Type *type_session_offer(const char *const *labels,
+                         Type **branches,
+                         int branch_count,
+                         Type *cont);
+Type *type_session_choose(const char *const *labels,
+                          Type **branches,
+                          int branch_count,
+                          Type *cont);
+Type *type_session_end(void);
+
+Type *type_from_name(const char *name);
+bool type_is_integer(const Type *t);
+
+const char *type_llvm_name(const Type *t);
+int type_width(const Type *t);
+bool type_is_signed(const Type *t);
+
+char *type_print(const Type *t);
 
 #endif /* TYPE_TYPE_H */
