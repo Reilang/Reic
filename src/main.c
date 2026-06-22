@@ -35,6 +35,7 @@
 
 int main(void)
 {
+    type_sys_init();
     char src_raw[] = "fn main(a: int32, b: int32) -> int32 {\n"
                      "    MAX_VAL = 100\n"
                      "    var x: int32 := 1\n"

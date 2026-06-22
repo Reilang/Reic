@@ -66,35 +66,35 @@ char *hir_node_print(hnode node_)
         snprintf(buf, 256, "%s '%s' -> %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  node_.sv ? node_.sv : "(null)",
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_VARDECL:
         snprintf(buf, 256, "%s '%s': %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  node_.sv ? node_.sv : "(null)",
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_IDENT:
         snprintf(buf, 256, "%s -> #%lld: %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  (long long)node_.iv,
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_ILITERAL:
         snprintf(buf, 256, "%s %lld: %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  (long long)node_.iv,
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_FLITERAL:
         snprintf(buf, 256, "%s %f: %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  node_.fv,
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_SLITERAL:
@@ -113,26 +113,26 @@ char *hir_node_print(hnode node_)
         snprintf(buf, 256, "%s '%s': %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  binop_symbol(node_.op),
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_UNOP:
         snprintf(buf, 256, "%s '%s': %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  binop_symbol(node_.op),
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     case HIR_CAST:
         snprintf(buf, 256, "%s -> %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     default:
         snprintf(buf, 256, "%s: %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
-                 type_info_of(node_.type)->name,
+                 (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
     }
@@ -147,31 +147,31 @@ static void node_label(const hnode *n, char *buf, size_t buf_sz)
         snprintf(buf, buf_sz, "%s '%s' -> %s",
                  kind_name(n->kind),
                  n->sv ? n->sv : "?",
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_VARDECL:
         snprintf(buf, buf_sz, "%s '%s': %s",
                  kind_name(n->kind),
                  n->sv ? n->sv : "?",
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_IDENT:
         snprintf(buf, buf_sz, "%s -> #%lld: %s",
                  kind_name(n->kind),
                  (long long)n->iv,
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_ILITERAL:
         snprintf(buf, buf_sz, "%s %lld: %s",
                  kind_name(n->kind),
                  (long long)n->iv,
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_FLITERAL:
         snprintf(buf, buf_sz, "%s %f: %s",
                  kind_name(n->kind),
                  n->fv,
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_SLITERAL:
         snprintf(buf, buf_sz, "%s \"%s\"",
@@ -187,29 +187,29 @@ static void node_label(const hnode *n, char *buf, size_t buf_sz)
         snprintf(buf, buf_sz, "%s '%s': %s",
                  kind_name(n->kind),
                  binop_symbol(n->op),
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_MATCHARM:
         snprintf(buf, buf_sz, "%s '%s': %s",
                  kind_name(n->kind),
                  binop_symbol(n->op),
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_UNOP:
         snprintf(buf, buf_sz, "%s '%s': %s",
                  kind_name(n->kind),
                  binop_symbol(n->op),
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     case HIR_CAST:
         snprintf(buf, buf_sz, "%s -> %s",
                  kind_name(n->kind),
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     default:
         snprintf(buf, buf_sz, "%s: %s",
                  kind_name(n->kind),
-                 type_info_of(n->type)->name);
+                 (n->type ? n->type->name : "?"));
         break;
     }
 }

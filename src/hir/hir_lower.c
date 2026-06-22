@@ -29,30 +29,25 @@
 #include <string.h>
 
 /* Forward: lower a single AST node, return its HIR index.
- * expected != TYPE_VOID means the caller wants the result at that type,
+ * expected != NULL means the caller wants the result at that type,
  * so an implicit HIR_CAST is inserted when the expression's own type
  * differs but is narrower. */
 static int lower_node(node_vector nodes, const sema_vector *annot,
                       hir_vector *hir, int *ast2hir,
-                      int idx, type_tag expected);
+                      int idx, const Type *expected);
 
-/*
- * Lower an AST expression.  Same as lower_node but always passes expected
- * through so callers can request implicit casts.
- */
 static int lower_expr(node_vector nodes, const sema_vector *annot,
                       hir_vector *hir, int *ast2hir,
-                      int idx, type_tag expected)
+                      int idx, const Type *expected)
 {
     return lower_node(nodes, annot, hir, ast2hir, idx, expected);
 }
 
-/* Lower a statement — no expected type (statements are void). */
 static int lower_stmt(node_vector nodes, const sema_vector *annot,
                       hir_vector *hir, int *ast2hir,
                       int idx)
 {
-    return lower_node(nodes, annot, hir, ast2hir, idx, TYPE_VOID);
+    return lower_node(nodes, annot, hir, ast2hir, idx, NULL);
 }
 
 /* Push a new hnode, return its index. */
@@ -65,9 +60,9 @@ static int hir_push(hir_vector *hir, hnode n)
 /* Insert a HIR_CAST between a lowered expression and its parent when the
  * expression's type differs from the expected type. */
 static int maybe_cast(hir_vector *hir, int inner_hir_idx,
-                      type_tag inner_type, type_tag expected)
+                      const Type *inner_type, const Type *expected)
 {
-    if (expected == TYPE_VOID || inner_type == expected)
+    if (!expected || inner_type == expected)
         return inner_hir_idx;
 
     hnode cast;
@@ -89,7 +84,7 @@ static int lower_params(node_vector nodes, const sema_vector *annot,
     int first = -1;
     int cur = first_param_idx;
     while (cur >= 0 && nodes.data[cur].kind == ANODE_VARDECL) {
-        int p = lower_node(nodes, annot, hir, ast2hir, cur, TYPE_VOID);
+        int p = lower_node(nodes, annot, hir, ast2hir, cur, NULL);
         if (prev >= 0)
             hir->data[prev].next = p;
         else
@@ -127,7 +122,7 @@ static int lower_block_body(node_vector nodes, const sema_vector *annot,
 
 static int lower_node(node_vector nodes, const sema_vector *annot,
                       hir_vector *hir, int *ast2hir,
-                      int idx, type_tag expected)
+                      int idx, const Type *expected)
 {
     if (idx < 0)
         return -1;
@@ -166,7 +161,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         }
 
         int body_hir = lower_node(nodes, annot, hir, ast2hir,
-                                    body_idx, TYPE_VOID);
+                                    body_idx, NULL);
 
         if (param_last >= 0)
             hir->data[param_last].next = body_hir;
@@ -204,13 +199,13 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         hn.kind = HIR_ASSIGN;
         int target_idx = n->child;
         int target_hir = lower_expr(nodes, annot, hir, ast2hir,
-                                    target_idx, TYPE_VOID);
+                                    target_idx, NULL);
         hn.child = target_hir;
 
         if (target_idx >= 0) {
             int rhs_idx = nodes.data[target_idx].next;
             if (rhs_idx >= 0) {
-                type_tag target_type = annot->data[target_idx].type;
+                const Type *target_type = annot->data[target_idx].type;
                 int rhs_hir = lower_expr(nodes, annot, hir, ast2hir,
                                          rhs_idx, target_type);
                 hir->data[target_hir].next = rhs_hir;
@@ -230,7 +225,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         if (scrutinee_idx < 0)
             break;
         int scrutinee_hir = lower_expr(nodes, annot, hir, ast2hir,
-                                       scrutinee_idx, TYPE_VOID);
+                                       scrutinee_idx, NULL);
         hn.child = scrutinee_hir;
 
         int prev_arm = scrutinee_hir;
@@ -242,7 +237,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
                 continue;
             }
             int arm_hir = lower_node(nodes, annot, hir, ast2hir,
-                                     arm, TYPE_VOID);
+                                     arm, NULL);
             hir->data[prev_arm].next = arm_hir;
             prev_arm = arm_hir;
             arm = arm_n->next;
@@ -255,7 +250,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         int pattern_idx = n->child;
         if (pattern_idx >= 0) {
             int pattern_hir = lower_expr(nodes, annot, hir, ast2hir,
-                                         pattern_idx, TYPE_VOID);
+                                         pattern_idx, NULL);
             hn.child = pattern_hir;
             int prev = pattern_hir;
             int body = nodes.data[pattern_idx].next;
@@ -273,12 +268,12 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         int cond_idx = n->child;
         if (cond_idx >= 0) {
             int cond_hir = lower_expr(nodes, annot, hir, ast2hir,
-                                      cond_idx, TYPE_VOID);
+                                      cond_idx, NULL);
             hn.child = cond_hir;
             int body_idx = nodes.data[cond_idx].next;
             if (body_idx >= 0) {
                 int body_hir = lower_node(nodes, annot, hir, ast2hir,
-                                          body_idx, TYPE_VOID);
+                                          body_idx, NULL);
                 hir->data[cond_hir].next = body_hir;
             }
         }
@@ -288,7 +283,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         hn.kind = HIR_LOOP;
         if (n->child >= 0)
             hn.child = lower_node(nodes, annot, hir, ast2hir,
-                                  n->child, TYPE_VOID);
+                                  n->child, NULL);
         break;
     case ANODE_ILITERAL:
         hn.kind = HIR_ILITERAL;
@@ -309,7 +304,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
     case ANODE_BINOP: {
         hn.kind = HIR_BINOP;
         hn.op = n->op;
-        type_tag common = annot->data[idx].type;
+        const Type *common = annot->data[idx].type;
         int lhs_idx = n->child;
         if (lhs_idx >= 0) {
             int lhs_hir = lower_expr(nodes, annot, hir, ast2hir,
@@ -370,7 +365,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
     int hir_idx = hir_push(hir, hn);
     ast2hir[idx] = hir_idx;
 
-    if (expected != TYPE_VOID && hn.type != expected && hn.type != TYPE_VOID) {
+    if (expected != NULL && hn.type != expected && hn.type != NULL) {
         int casted = maybe_cast(hir, hir_idx, hn.type, expected);
         return casted;
     }
@@ -390,7 +385,7 @@ hir_vector hir_lower(node_vector nodes, const sema_vector *annot)
 
     for (int i = 0; i < nodes.size; i++) {
         if (nodes.data[i].kind == ANODE_FUNCDECL)
-            lower_node(nodes, annot, &hir, ast2hir, i, TYPE_VOID);
+            lower_node(nodes, annot, &hir, ast2hir, i, NULL);
     }
 
     free(ast2hir);

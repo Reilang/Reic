@@ -36,7 +36,7 @@
  * Per-node semantic annotation.  Indexed by AST node index.
  */
 typedef struct {
-    type_tag type;
+    const Type *type;
     int decl_idx;   /* IDENT: AST index of declaration node, else -1 */
 } sema_annot;
 
@@ -58,7 +58,7 @@ typedef enum {
 typedef struct {
     bool is_assigned;
     bool is_used;
-    type_tag type;
+    const Type *type;
     int ast_idx;    /* AST node index of this declaration */
 } sym_var;
 
@@ -67,8 +67,8 @@ typedef struct {
  */
 typedef struct {
     bool is_used;
-    type_tag ret_type;
-    type_tag_vector param_types;
+    const Type *ret_type;
+    type_ptr_vector param_types;
 } sym_func;
 
 /*
@@ -76,7 +76,7 @@ typedef struct {
  */
 typedef struct {
     bool is_used;
-    type_tag type;
+    const Type *type;
     int64_t value;
     int ast_idx;    /* AST node index of the ANODE_CONSTDECL */
 } sym_const;
@@ -85,7 +85,7 @@ typedef struct {
  * Type symbol: named type alias (user-defined type).
  */
 typedef struct {
-    type_tag type;
+    const Type *type;
 } sym_type;
 
 /*
@@ -107,9 +107,6 @@ typedef struct {
     };
 } sym_entry;
 
-/*
- * Run semantic analysis over the AST.  Appends diagnostics to *diags.
- */
 sema_vector sema_check(node_vector nodes, diag_vector *diags);
 
 #endif /* SEMA_SEMA_H */

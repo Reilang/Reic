@@ -96,15 +96,15 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             return -1;
         }
         {
-            type_tag tag = type_from_name(tk.value.string);
-            if (tag == TYPE_COUNT) {
+            Type *ty = type_from_name(tk.value.string);
+            if (!ty) {
                 diag_add(diags, LEVEL_ERROR, "unknown type name",
                         tk.line, tk.col);
                 sync(p);
                 return -1;
             }
             ptype_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[ptype_idx].iv = tag;
+            nodes->data[ptype_idx].type_val = ty;
         }
         p->cursor++;
 
@@ -155,15 +155,15 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         return -1;
     }
     {
-        type_tag tag = type_from_name(tk.value.string);
-        if (tag == TYPE_COUNT) {
+        Type *ty = type_from_name(tk.value.string);
+        if (!ty) {
             diag_add(diags, LEVEL_ERROR, "unknown type name",
                     tk.line, tk.col);
             sync(p);
             return -1;
         }
         rettype_idx = new_node(nodes, ANODE_IDENT_TYPE);
-        nodes->data[rettype_idx].iv = tag;
+        nodes->data[rettype_idx].type_val = ty;
     }
     p->cursor++;
 
@@ -240,15 +240,15 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
         /* var x: type */
         tk = curtok(p);
         {
-            type_tag tag = type_from_name(tk.value.string);
-            if (tag == TYPE_COUNT) {
+            Type *ty = type_from_name(tk.value.string);
+            if (!ty) {
                 diag_add(diags, LEVEL_ERROR, "unknown type name",
                         tk.line, tk.col);
                 sync(p);
                 return -1;
             }
             type_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[type_idx].iv = tag;
+            nodes->data[type_idx].type_val = ty;
         }
         p->cursor++;
 

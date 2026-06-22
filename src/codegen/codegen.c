@@ -42,9 +42,9 @@ char *buf_alloc(void)
     return buf;
 }
 
-const char *llvm_ty(type_tag tag)
+const char *llvm_ty(const Type *type)
 {
-    return type_info_of(tag)->llvm_name;
+    return type_llvm_name(type);
 }
 
 const char *icmp_cond(tktype op, bool is_signed)
@@ -60,13 +60,13 @@ const char *icmp_cond(tktype op, bool is_signed)
     }
 }
 
-const char *cast_op(type_tag src, type_tag dst)
+const char *cast_op(const Type *src, const Type *dst)
 {
-    const type_info *si = type_info_of(src);
-    const type_info *di = type_info_of(dst);
-    if (si->width < di->width)
-        return si->is_signed ? "sext" : "zext";
-    if (si->width > di->width)
+    int sw = type_width(src);
+    int dw = type_width(dst);
+    if (sw < dw)
+        return type_is_signed(src) ? "sext" : "zext";
+    if (sw > dw)
         return "trunc";
     return "bitcast";
 }

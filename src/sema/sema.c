@@ -73,13 +73,13 @@ void sym_set_copy(sym_set *dst, const sym_set *src)
 
     for (i = 0; i < dst->cap; i++) {
         if (dst->occupied[i] && dst->entries[i].kind == SYM_FUNC) {
-            type_tag_vector *pt = &dst->entries[i].func.param_types;
+            type_ptr_vector *pt = &dst->entries[i].func.param_types;
             if (pt->cap > 0 && pt->data) {
-                type_tag *new_data =
-                    (type_tag *)malloc((size_t)pt->cap * sizeof(type_tag));
+                Type **new_data =
+                    (Type **)malloc((size_t)pt->cap * sizeof(Type *));
                 if (!new_data) abort();
                 memcpy(new_data, pt->data,
-                       (size_t)pt->size * sizeof(type_tag));
+                       (size_t)pt->size * sizeof(Type *));
                 pt->data = new_data;
             }
         }
@@ -165,34 +165,22 @@ void diag_fmt(diag_vector *diags, level lv, int line, int col,
     diag_add(diags, lv, buf, line, col);
 }
 
-type_tag common_type(type_tag a, type_tag b)
+const Type *common_type(const Type *a, const Type *b)
 {
-    const type_info *ai, *bi;
-
-    if (a == b)
-        return a;
-    ai = type_info_of(a);
-    bi = type_info_of(b);
-    if (ai->is_signed != bi->is_signed)
-        return TYPE_COUNT;
-    if (a == TYPE_VOID || b == TYPE_VOID)
-        return TYPE_COUNT;
-    return (ai->width >= bi->width) ? a : b;
+    if (!a || !b) return NULL;
+    if (a == b) return a;
+    if (!type_is_integer(a) || !type_is_integer(b)) return NULL;
+    if (type_is_signed(a) != type_is_signed(b)) return NULL;
+    return (type_width(a) >= type_width(b)) ? a : b;
 }
 
-bool assignable_to(type_tag dst, type_tag src)
+bool assignable_to(const Type *dst, const Type *src)
 {
-    const type_info *di, *si;
-
-    if (dst == src)
-        return true;
-    if (dst == TYPE_VOID || src == TYPE_VOID)
-        return false;
-    di = type_info_of(dst);
-    si = type_info_of(src);
-    if (di->is_signed != si->is_signed)
-        return false;
-    return di->width >= si->width;
+    if (!dst || !src) return false;
+    if (dst == src) return true;
+    if (!type_is_integer(dst) || !type_is_integer(src)) return false;
+    if (type_is_signed(dst) != type_is_signed(src)) return false;
+    return type_width(dst) >= type_width(src);
 }
 
 sema_vector sema_check(node_vector nodes, diag_vector *diags)
@@ -205,7 +193,7 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
     /* Pre-allocate annotation vector: one entry per AST node. */
     sema_vec_new(&annot, nodes.size);
     for (i = 0; i < nodes.size; i++) {
-        sema_annot a = { .type = TYPE_VOID, .decl_idx = -1 };
+        sema_annot a = { .type = NULL, .decl_idx = -1 };
         sema_vec_push(&annot, a);
     }
 
@@ -225,7 +213,7 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
             while (cur >= 0 && nodes.data[cur].kind == ANODE_VARDECL)
                 cur = nodes.data[cur].next;
             if (cur >= 0 && nodes.data[cur].kind == ANODE_IDENT_TYPE)
-                annot.data[i].type = (type_tag)nodes.data[cur].iv;
+                annot.data[i].type = nodes.data[cur].type_val;
         }
 
         /* Add parameters to function scope. */
@@ -242,12 +230,12 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
                 entry.decl_depth = 0;
                 entry.var.is_assigned = true;
                 entry.var.is_used = false;
-                entry.var.type = (type_tag)nodes.data[type_idx].iv;
+                entry.var.type = nodes.data[type_idx].type_val;
                 entry.var.ast_idx = cur;
                 sym_set_insert(&func_scope, entry);
 
                 /* Annotate parameter VARDECL. */
-                annot.data[cur].type = (type_tag)nodes.data[type_idx].iv;
+                annot.data[cur].type = nodes.data[type_idx].type_val;
 
                 cur = vd->next;
             }

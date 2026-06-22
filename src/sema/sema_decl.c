@@ -43,14 +43,14 @@ void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
         }
     }
 
-    type_tag type = TYPE_VOID;
+    const Type *type = TYPE_VOID;
     int type_idx = -1;
     int init_idx = -1;
 
     {
         int cur = name_n->next;
         if (cur >= 0 && nodes.data[cur].kind == ANODE_IDENT_TYPE) {
-            type = (type_tag)nodes.data[cur].iv;
+            type = nodes.data[cur].type_val;
             type_idx = cur;
             cur = nodes.data[cur].next;
         }
@@ -59,14 +59,14 @@ void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
     }
 
     {
-        type_tag init_type = TYPE_VOID;
+        const Type *init_type = TYPE_VOID;
 
         if (init_idx >= 0)
             init_type = sema_expr(nodes, stack, init_idx, diags, annot);
 
         if (type_idx < 0) {
             if (init_idx >= 0) {
-                if (init_type != TYPE_VOID)
+                if (init_type)
                     type = init_type;
                 else
                     diag_fmt(diags, LEVEL_ERROR, 0, 0,
@@ -78,14 +78,14 @@ void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                          "without initializer or type annotation", name);
             }
         } else {
-            if (init_idx >= 0 && init_type != TYPE_VOID) {
+            if (init_idx >= 0 && init_type) {
                 if (!assignable_to(type, init_type))
                     diag_fmt(diags, LEVEL_ERROR, 0, 0,
                              "type mismatch: cannot assign '%s' "
                              "to variable '%s' of type '%s'",
-                             type_info_of(init_type)->name,
+                             init_type->name ? init_type->name : "?",
                              name,
-                             type_info_of(type)->name);
+                             type->name ? type->name : "?");
             }
         }
     }
@@ -136,7 +136,7 @@ void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
         return;
     }
 
-    type_tag type = TYPE_I32;
+    const Type *type = TYPE_I32;
     int64_t value = nodes.data[value_idx].iv;
 
     /* Annotate the CONSTDECL and its name child. */

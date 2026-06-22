@@ -4,7 +4,7 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * hir.h — HIR node kind enum and the hnode struct.
  *
- * HIR sits between sema and codegen.  Every node carries a resolved type_tag;
+ * HIR sits between sema and codegen.  Every node carries a resolved Type*;
  * identifier references point to their declaration node by index.
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
@@ -65,7 +65,7 @@ typedef enum {
  */
 typedef struct {
     hkind kind;
-    type_tag type;
+    const Type *type;
     int child;
     int next;
     union {

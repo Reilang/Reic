@@ -76,7 +76,7 @@ const char *emit_expr(CgCtx *ctx, int idx)
         case TK_MINUS: opname = "sub";  break;
         case TK_STAR:  opname = "mul";  break;
         case TK_SLASH:
-            opname = type_info_of(n->type)->is_signed ? "sdiv" : "udiv";
+            opname = type_is_signed(n->type) ? "sdiv" : "udiv";
             break;
         case TK_EQUAL:
         case TK_NOTEQUAL:
@@ -91,7 +91,7 @@ const char *emit_expr(CgCtx *ctx, int idx)
 
         if (is_comp) {
             const char *cond = icmp_cond(n->op,
-                                         type_info_of(n->type)->is_signed);
+                                         type_is_signed(n->type));
             const char *cmp_res = cg_new_reg(ctx);
             fprintf(ctx->f, "  %s = icmp %s %s %s, %s\n",
                     cmp_res, cond, ty, lhs_buf, rhs_buf);
@@ -121,7 +121,7 @@ const char *emit_expr(CgCtx *ctx, int idx)
     }
     case HIR_CAST: {
         const char *inner = emit_expr(ctx, n->child);
-        type_tag inner_type = ctx->hir->data[n->child].type;
+        const Type *inner_type = ctx->hir->data[n->child].type;
         const char *op = cast_op(inner_type, n->type);
         const char *src_ty = llvm_ty(inner_type);
         const char *dst_ty = llvm_ty(n->type);

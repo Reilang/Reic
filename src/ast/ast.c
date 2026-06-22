@@ -81,7 +81,7 @@ char *anode_print(anode node_)
     case ANODE_IDENT_TYPE:
         snprintf(buf, 256, "%s '%s'  (child=%d, next=%d)",
                  kind_name(node_.kind),
-                 type_info_of((type_tag)node_.iv)->name,
+                 node_.type_val ? node_.type_val->name : "?",
                  node_.child, node_.next);
         break;
     case ANODE_ILITERAL:
@@ -131,7 +131,7 @@ static void node_label(const anode *n, char *buf, size_t buf_sz)
     case ANODE_IDENT_TYPE:
         snprintf(buf, buf_sz, "%s '%s'",
                  kind_name(n->kind),
-                 type_info_of((type_tag)n->iv)->name);
+                 n->type_val ? n->type_val->name : "?");
         break;
     case ANODE_ILITERAL:
         snprintf(buf, buf_sz, "%s %lld",

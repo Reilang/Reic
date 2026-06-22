@@ -41,12 +41,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---- template instantiations (one copy per TU, static inline) ---- */
-
 DECLARE_SET(sym_entry, sym)
 DECLARE_VECTOR(sym_set, sym_set)
-
-/* ---- scope helpers (sema.c) ---- */
 
 sym_set *cur_scope(sym_set_vector *stack);
 int cur_depth(const sym_set_vector *stack);
@@ -56,24 +52,16 @@ void diag_fmt(diag_vector *diags, level lv, int line, int col,
 void scope_enter(sym_set_vector *stack);
 void scope_leave(sym_set_vector *stack, diag_vector *diags);
 
-/* ---- type helpers (sema.c) ---- */
-
-type_tag common_type(type_tag a, type_tag b);
-bool assignable_to(type_tag dst, type_tag src);
-
-/* ---- declarations (sema_decl.c) ---- */
+const Type *common_type(const Type *a, const Type *b);
+bool assignable_to(const Type *dst, const Type *src);
 
 void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                    diag_vector *diags, sema_vector *annot);
 void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
                      diag_vector *diags, sema_vector *annot);
 
-/* ---- expressions (sema_expr.c) ---- */
-
-type_tag sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
-                   diag_vector *diags, sema_vector *annot);
-
-/* ---- statements (sema_stmt.c) ---- */
+const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
+                      diag_vector *diags, sema_vector *annot);
 
 void sema_block(node_vector nodes, sym_set_vector *stack,
                  int block_idx, diag_vector *diags, sema_vector *annot);

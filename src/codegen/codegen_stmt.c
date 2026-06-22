@@ -24,7 +24,7 @@
  */
 #include "codegen/codegen_internal.h"
 
-bool can_use_switch(CgCtx *ctx, int if_idx, type_tag scr_type)
+bool can_use_switch(CgCtx *ctx, int if_idx, const Type *scr_type)
 {
     hnode *if_n = &ctx->hir->data[if_idx];
     int scrutinee_idx = if_n->child;
@@ -50,7 +50,7 @@ bool can_use_switch(CgCtx *ctx, int if_idx, type_tag scr_type)
 }
 
 void emit_if_switch(CgCtx *ctx, int if_idx, const char *scr_reg,
-                     type_tag scr_type, const char *merge_label_arg)
+                     const Type *scr_type, const char *merge_label_arg)
 {
     hnode *if_n = &ctx->hir->data[if_idx];
     int scrutinee_idx = if_n->child;
@@ -107,12 +107,12 @@ void emit_if_switch(CgCtx *ctx, int if_idx, const char *scr_reg,
 }
 
 void emit_if_chain(CgCtx *ctx, int if_idx, const char *scr_reg,
-                    type_tag scr_type, const char *merge_label_arg)
+                    const Type *scr_type, const char *merge_label_arg)
 {
     hnode *if_n = &ctx->hir->data[if_idx];
     int scrutinee_idx = if_n->child;
     const char *ty = llvm_ty(scr_type);
-    bool scr_signed = type_info_of(scr_type)->is_signed;
+    bool scr_signed = type_is_signed(scr_type);
 
     char merge_label[64];
     snprintf(merge_label, sizeof(merge_label), "%s", merge_label_arg);
@@ -223,8 +223,7 @@ void emit_stmt(CgCtx *ctx, int idx)
             char val_buf[64];
             const char *val = emit_expr(ctx, n->child);
             snprintf(val_buf, sizeof(val_buf), "%s", val);
-            type_tag ret_ty = (n->type != TYPE_VOID) ? n->type
-                                                     : ctx->func_ret_type;
+            const Type *ret_ty = n->type ? n->type : ctx->func_ret_type;
             const char *ty = llvm_ty(ret_ty);
             fprintf(ctx->f, "  ret %s %s\n", ty, val_buf);
         }
@@ -236,7 +235,7 @@ void emit_stmt(CgCtx *ctx, int idx)
         const char *scr_reg = emit_expr(ctx, scrutinee_idx);
         snprintf(scr_buf, sizeof(scr_buf), "%s", scr_reg);
 
-        type_tag scr_type = ctx->hir->data[scrutinee_idx].type;
+        const Type *scr_type = ctx->hir->data[scrutinee_idx].type;
         char merge_label[64];
         snprintf(merge_label, sizeof(merge_label), "%s", cg_new_label(ctx, "if_merge"));
 
@@ -266,7 +265,7 @@ void emit_stmt(CgCtx *ctx, int idx)
         const char *cond_reg = emit_expr(ctx, cond_idx);
         snprintf(cond_buf, sizeof(cond_buf), "%s", cond_reg);
 
-        type_tag cond_type = ctx->hir->data[cond_idx].type;
+        const Type *cond_type = ctx->hir->data[cond_idx].type;
         const char *ty = llvm_ty(cond_type);
         const char *bool_reg = cg_new_reg(ctx);
         fprintf(ctx->f, "  %s = icmp ne %s %s, 0\n", bool_reg, ty, cond_buf);
