@@ -169,18 +169,36 @@ const Type *common_type(const Type *a, const Type *b)
 {
     if (!a || !b) return NULL;
     if (a == b) return a;
-    if (!type_is_integer(a) || !type_is_integer(b)) return NULL;
-    if (type_is_signed(a) != type_is_signed(b)) return NULL;
-    return (type_width(a) >= type_width(b)) ? a : b;
+
+    /* Integer: same signedness, wider wins. */
+    if (type_is_integer(a) && type_is_integer(b)) {
+        if (type_is_signed(a) != type_is_signed(b)) return NULL;
+        return (type_width(a) >= type_width(b)) ? a : b;
+    }
+
+    /* Float: wider wins. */
+    if (type_is_float(a) && type_is_float(b))
+        return (type_width(a) >= type_width(b)) ? a : b;
+
+    return NULL;
 }
 
 bool assignable_to(const Type *dst, const Type *src)
 {
     if (!dst || !src) return false;
     if (dst == src) return true;
-    if (!type_is_integer(dst) || !type_is_integer(src)) return false;
-    if (type_is_signed(dst) != type_is_signed(src)) return false;
-    return type_width(dst) >= type_width(src);
+
+    /* Integer: same signedness, dst wider. */
+    if (type_is_integer(dst) && type_is_integer(src)) {
+        if (type_is_signed(dst) != type_is_signed(src)) return false;
+        return type_width(dst) >= type_width(src);
+    }
+
+    /* Float: dst wider or same width. */
+    if (type_is_float(dst) && type_is_float(src))
+        return type_width(dst) >= type_width(src);
+
+    return false;
 }
 
 sema_vector sema_check(node_vector nodes, diag_vector *diags)

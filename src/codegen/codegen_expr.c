@@ -68,15 +68,19 @@ const char *emit_expr(CgCtx *ctx, int idx)
         const char *rhs_reg = emit_expr(ctx, rhs_idx);
         snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs_reg);
 
-        const char *ty = llvm_ty(n->type);
+        const Type *op_ty = (lhs_idx >= 0)
+            ? ctx->hir->data[lhs_idx].type : n->type;
+        const char *op_llvm_ty = llvm_ty(op_ty);
+        bool is_float = type_is_float(op_ty);
         bool is_comp = false;
         const char *opname = NULL;
         switch (n->op) {
-        case TK_ADD:   opname = "add";  break;
-        case TK_MINUS: opname = "sub";  break;
-        case TK_STAR:  opname = "mul";  break;
+        case TK_ADD:   opname = is_float ? "fadd"  : "add";  break;
+        case TK_MINUS: opname = is_float ? "fsub"  : "sub";  break;
+        case TK_STAR:  opname = is_float ? "fmul"  : "mul";  break;
         case TK_SLASH:
-            opname = type_is_signed(n->type) ? "sdiv" : "udiv";
+            opname = is_float ? "fdiv"
+                     : type_is_signed(n->type) ? "sdiv" : "udiv";
             break;
         case TK_EQUAL:
         case TK_NOTEQUAL:
@@ -86,23 +90,28 @@ const char *emit_expr(CgCtx *ctx, int idx)
         case TK_GREATEREQUAL:
             is_comp = true;
             break;
-        default:       opname = "add";  break;
+        default:       opname = is_float ? "fadd" : "add";  break;
         }
 
         if (is_comp) {
-            const char *cond = icmp_cond(n->op,
-                                         type_is_signed(n->type));
             const char *cmp_res = cg_new_reg(ctx);
-            strbuf_addf(&ctx->sb, "  %s = icmp %s %s %s, %s\n",
-                        cmp_res, cond, ty, lhs_buf, rhs_buf);
-            const char *res = cg_new_reg(ctx);
-            strbuf_addf(&ctx->sb, "  %s = zext i1 %s to %s\n", res, cmp_res, ty);
-            return res;
+            if (is_float) {
+                const char *cond = fcmp_cond(n->op);
+                strbuf_addf(&ctx->sb, "  %s = fcmp %s %s %s, %s\n",
+                            cmp_res, cond, op_llvm_ty, lhs_buf, rhs_buf);
+            } else {
+                const char *cond = icmp_cond(n->op,
+                                             type_is_signed(op_ty));
+                strbuf_addf(&ctx->sb, "  %s = icmp %s %s %s, %s\n",
+                            cmp_res, cond, op_llvm_ty, lhs_buf, rhs_buf);
+            }
+            return cmp_res;
         }
 
         const char *res = cg_new_reg(ctx);
+        const char *res_ty = llvm_ty(n->type);
         strbuf_addf(&ctx->sb, "  %s = %s %s %s, %s\n",
-                    res, opname, ty, lhs_buf, rhs_buf);
+                    res, opname, res_ty, lhs_buf, rhs_buf);
         return res;
     }
     case HIR_UNOP: {
@@ -111,7 +120,10 @@ const char *emit_expr(CgCtx *ctx, int idx)
         const char *res = cg_new_reg(ctx);
 
         if (n->op == TK_MINUS) {
-            strbuf_addf(&ctx->sb, "  %s = sub %s 0, %s\n", res, ty, opnd);
+            if (type_is_float(n->type))
+                strbuf_addf(&ctx->sb, "  %s = fneg %s %s\n", res, ty, opnd);
+            else
+                strbuf_addf(&ctx->sb, "  %s = sub %s 0, %s\n", res, ty, opnd);
         } else if (n->op == TK_NOT) {
             strbuf_addf(&ctx->sb, "  %s = xor %s %s, -1\n", res, ty, opnd);
         } else {

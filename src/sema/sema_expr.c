@@ -63,11 +63,13 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
         annot->data[idx].type = TYPE_I32;
         return TYPE_I32;
     case ANODE_FLITERAL:
-        return NULL;
+        annot->data[idx].type = TYPE_F64;
+        return TYPE_F64;
     case ANODE_BINOP: {
         const Type *lt = sema_expr(nodes, stack, n->child, diags, annot);
         const Type *rt = NULL;
         const Type *common;
+        bool is_cmp = false;
         if (n->child >= 0)
             rt = sema_expr(nodes, stack,
                            nodes.data[n->child].next, diags, annot);
@@ -79,8 +81,11 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
                      rt ? rt->name : "?");
             return NULL;
         }
-        annot->data[idx].type = common;
-        return common;
+        is_cmp = (n->op == TK_EQUAL || n->op == TK_NOTEQUAL
+                  || n->op == TK_OABRACKET || n->op == TK_CABRACKET
+                  || n->op == TK_LESSEQUAL || n->op == TK_GREATEREQUAL);
+        annot->data[idx].type = is_cmp ? TYPE_BOOL : common;
+        return is_cmp ? TYPE_BOOL : common;
     }
     case ANODE_UNOP: {
         const Type *t = sema_expr(nodes, stack, n->child, diags, annot);

@@ -228,6 +228,58 @@ static void test_if_with_switch(void)
     golden_free(&fx);
 }
 
+static void test_float_arithmetic(void)
+{
+    printf("--- test_float_arithmetic ---\n");
+    char src_raw[] = "fn calc(x: float64, y: float64) -> float64 {\n"
+                 "  return x + y * 3.14\n"
+                 "}\n";
+    GoldenFixture fx;
+    golden_init(&fx, src_raw);
+
+    ASSERT_EQ_INT(golden_run(&fx), 0, "codegen succeeds");
+
+    char *ir = golden_read(GOLDEN_PATH);
+    ASSERT(ir != NULL, "output file exists");
+    if (!ir) { golden_free(&fx); return; }
+
+    ASSERT(strstr(ir, "define double @calc") != NULL,
+           "contains double return type");
+    ASSERT(strstr(ir, "fadd double") != NULL, "contains fadd");
+    ASSERT(strstr(ir, "fmul double") != NULL, "contains fmul");
+
+    free(ir);
+    golden_free(&fx);
+}
+
+static void test_float_comparison(void)
+{
+    printf("--- test_float_comparison ---\n");
+    char src_raw[] = "fn countdown(x: float64) -> int32 {\n"
+                 "  var i := 0\n"
+                 "  while (x > 0.0) {\n"
+                 "    x := x - 1.0\n"
+                 "    i := i + 1\n"
+                 "  }\n"
+                 "  return i\n"
+                 "}\n";
+    GoldenFixture fx;
+    golden_init(&fx, src_raw);
+
+    ASSERT_EQ_INT(golden_run(&fx), 0, "codegen succeeds");
+
+    char *ir = golden_read(GOLDEN_PATH);
+    ASSERT(ir != NULL, "output file exists");
+    if (!ir) { golden_free(&fx); return; }
+
+    ASSERT(strstr(ir, "fcmp ogt double") != NULL, "contains fcmp ogt");
+    ASSERT(strstr(ir, "fsub double") != NULL, "contains fsub");
+    ASSERT(strstr(ir, "while_cond") != NULL, "contains while loop");
+
+    free(ir);
+    golden_free(&fx);
+}
+
 static void test_while_loop(void)
 {
     printf("--- test_while_loop ---\n");
@@ -261,6 +313,8 @@ int main(void)
     test_arithmetic();
     test_const_inlining();
     test_if_with_switch();
+    test_float_arithmetic();
+    test_float_comparison();
     test_while_loop();
 
     TEST_SUMMARY();

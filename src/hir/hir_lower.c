@@ -304,16 +304,32 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
     case ANODE_BINOP: {
         hn.kind = HIR_BINOP;
         hn.op = n->op;
-        const Type *common = annot->data[idx].type;
+        const Type *result_type = annot->data[idx].type;
         int lhs_idx = n->child;
         if (lhs_idx >= 0) {
-            int lhs_hir = lower_expr(nodes, annot, hir, ast2hir,
-                                     lhs_idx, common);
-            hn.child = lhs_hir;
             int rhs_idx = nodes.data[lhs_idx].next;
+            /*
+             * For comparison operators the result type is bool, but
+             * operands share their own common type.  Derive it from
+             * the operand annotations.
+             */
+            bool is_cmp = (n->op == TK_EQUAL || n->op == TK_NOTEQUAL
+                           || n->op == TK_OABRACKET || n->op == TK_CABRACKET
+                           || n->op == TK_LESSEQUAL || n->op == TK_GREATEREQUAL);
+            const Type *op_expected = result_type;
+            if (is_cmp) {
+                const Type *lt = annot->data[lhs_idx].type;
+                const Type *rt = (rhs_idx >= 0) ? annot->data[rhs_idx].type : NULL;
+                op_expected = lt;
+                if (rt && type_width(rt) > type_width(lt))
+                    op_expected = rt;
+            }
+            int lhs_hir = lower_expr(nodes, annot, hir, ast2hir,
+                                     lhs_idx, op_expected);
+            hn.child = lhs_hir;
             if (rhs_idx >= 0) {
                 int rhs_hir = lower_expr(nodes, annot, hir, ast2hir,
-                                         rhs_idx, common);
+                                         rhs_idx, op_expected);
                 hir->data[lhs_hir].next = rhs_hir;
             }
         }

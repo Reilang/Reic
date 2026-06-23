@@ -429,6 +429,13 @@ bool type_is_integer(const Type *t)
         && (t->prim == PRIM_INT || t->prim == PRIM_NAT);
 }
 
+bool type_is_float(const Type *t)
+{
+    return t
+        && t->kind == TYPEK_PRIM
+        && t->prim == PRIM_FLOAT;
+}
+
 /* LLVM mapping */
 
 static const char *int_llvm_name(int width)

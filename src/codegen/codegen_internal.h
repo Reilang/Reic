@@ -53,6 +53,7 @@ typedef struct {
 char *buf_alloc(void);
 const char *llvm_ty(const Type *type);
 const char *icmp_cond(tktype op, bool is_signed);
+const char *fcmp_cond(tktype op);
 const char *cast_op(const Type *src, const Type *dst);
 const char *cg_new_reg(CgCtx *ctx);
 const char *cg_new_label(CgCtx *ctx, const char *prefix);

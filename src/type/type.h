@@ -139,6 +139,7 @@ Type *type_session_end(void);
 
 Type *type_from_name(const char *name);
 bool type_is_integer(const Type *t);
+bool type_is_float(const Type *t);
 
 const char *type_llvm_name(const Type *t);
 int type_width(const Type *t);

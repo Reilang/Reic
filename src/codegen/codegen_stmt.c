@@ -30,6 +30,9 @@ bool can_use_switch(CgCtx *ctx, int if_idx, const Type *scr_type)
     int scrutinee_idx = if_n->child;
     if (scrutinee_idx < 0) return false;
 
+    /* LLVM switch only supports integer types. */
+    if (type_is_float(scr_type)) return false;
+
     int arm = ctx->hir->data[scrutinee_idx].next;
     if (arm < 0) return false;
 
@@ -112,6 +115,7 @@ void emit_if_chain(CgCtx *ctx, int if_idx, const char *scr_reg,
     hnode *if_n = &ctx->hir->data[if_idx];
     int scrutinee_idx = if_n->child;
     const char *ty = llvm_ty(scr_type);
+    bool scr_float = type_is_float(scr_type);
     bool scr_signed = type_is_signed(scr_type);
 
     char merge_label[64];
@@ -153,9 +157,15 @@ void emit_if_chain(CgCtx *ctx, int if_idx, const char *scr_reg,
         snprintf(pat_buf, sizeof(pat_buf), "%s", pat_reg);
 
         const char *cond_reg = cg_new_reg(ctx);
-        const char *cond = icmp_cond(arm_n->op, scr_signed);
-        strbuf_addf(&ctx->sb, "  %s = icmp %s %s %s, %s\n",
-                    cond_reg, cond, ty, scr_reg, pat_buf);
+        if (scr_float) {
+            const char *cond = fcmp_cond(arm_n->op);
+            strbuf_addf(&ctx->sb, "  %s = fcmp %s %s %s, %s\n",
+                        cond_reg, cond, ty, scr_reg, pat_buf);
+        } else {
+            const char *cond = icmp_cond(arm_n->op, scr_signed);
+            strbuf_addf(&ctx->sb, "  %s = icmp %s %s %s, %s\n",
+                        cond_reg, cond, ty, scr_reg, pat_buf);
+        }
         strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
                     cond_reg, arm_label, next_label);
 
@@ -266,11 +276,24 @@ void emit_stmt(CgCtx *ctx, int idx)
         snprintf(cond_buf, sizeof(cond_buf), "%s", cond_reg);
 
         const Type *cond_type = ctx->hir->data[cond_idx].type;
-        const char *ty = llvm_ty(cond_type);
-        const char *bool_reg = cg_new_reg(ctx);
-        strbuf_addf(&ctx->sb, "  %s = icmp ne %s %s, 0\n", bool_reg, ty, cond_buf);
-        strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
-                    bool_reg, body_label, exit_label);
+        if (cond_type == TYPE_BOOL) {
+            strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
+                        cond_buf, body_label, exit_label);
+        } else if (type_is_float(cond_type)) {
+            const char *ty = llvm_ty(cond_type);
+            const char *bool_reg = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb, "  %s = fcmp une %s %s, 0.0\n",
+                        bool_reg, ty, cond_buf);
+            strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
+                        bool_reg, body_label, exit_label);
+        } else {
+            const char *ty = llvm_ty(cond_type);
+            const char *bool_reg = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb, "  %s = icmp ne %s %s, 0\n",
+                        bool_reg, ty, cond_buf);
+            strbuf_addf(&ctx->sb, "  br i1 %s, label %%%s, label %%%s\n",
+                        bool_reg, body_label, exit_label);
+        }
 
         strbuf_addf(&ctx->sb, "\n%s:\n", body_label);
         emit_stmt(ctx, body_idx);

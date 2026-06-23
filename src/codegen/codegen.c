@@ -50,13 +50,26 @@ const char *llvm_ty(const Type *type)
 const char *icmp_cond(tktype op, bool is_signed)
 {
     switch (op) {
-    case TK_EQUAL:      return "eq";
-    case TK_NOTEQUAL:   return "ne";
-    case TK_OABRACKET:  return is_signed ? "slt" : "ult";
-    case TK_CABRACKET:  return is_signed ? "sgt" : "ugt";
-    case TK_LESSEQUAL:  return is_signed ? "sle" : "ule";
-    case TK_GREATEREQUAL: return is_signed ? "sge" : "uge";
-    default:            return "eq";
+    case TK_EQUAL:         return "eq";
+    case TK_NOTEQUAL:      return "ne";
+    case TK_OABRACKET:     return is_signed ? "slt" : "ult";
+    case TK_CABRACKET:     return is_signed ? "sgt" : "ugt";
+    case TK_LESSEQUAL:     return is_signed ? "sle" : "ule";
+    case TK_GREATEREQUAL:  return is_signed ? "sge" : "uge";
+    default:               return "eq";
+    }
+}
+
+const char *fcmp_cond(tktype op)
+{
+    switch (op) {
+    case TK_EQUAL:         return "oeq";
+    case TK_NOTEQUAL:      return "one";
+    case TK_OABRACKET:     return "olt";
+    case TK_CABRACKET:     return "ogt";
+    case TK_LESSEQUAL:     return "ole";
+    case TK_GREATEREQUAL:  return "oge";
+    default:               return "oeq";
     }
 }
 
@@ -64,6 +77,18 @@ const char *cast_op(const Type *src, const Type *dst)
 {
     int sw = type_width(src);
     int dw = type_width(dst);
+
+    if (type_is_float(src) && type_is_float(dst)) {
+        if (sw < dw) return "fpext";
+        if (sw > dw) return "fptrunc";
+        return "bitcast";
+    }
+    if (type_is_integer(src) && type_is_float(dst))
+        return type_is_signed(src) ? "sitofp" : "uitofp";
+    if (type_is_float(src) && type_is_integer(dst))
+        return type_is_signed(dst) ? "fptosi" : "fptoui";
+
+    /* Integer <-> Integer */
     if (sw < dw)
         return type_is_signed(src) ? "sext" : "zext";
     if (sw > dw)
