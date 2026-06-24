@@ -369,6 +369,47 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
     case ANODE_INDEX:
         hn.kind = HIR_NONE;
         break;
+    case ANODE_STRUCTLIT: {
+        hn.kind = HIR_STRUCTLIT;
+        hn.type = annot->data[idx].type;
+
+        int first_val = -1;
+        int prev_val = -1;
+        int fc = n->child;
+        while (fc >= 0) {
+            const anode *fi = &nodes.data[fc];
+            int val_idx = fi->child;
+            const Type *fty = NULL;
+            int i;
+
+            if (hn.type) {
+                for (i = 0; i < hn.type->field_count; i++) {
+                    if (strcmp(hn.type->field_names[i], fi->sv) == 0) {
+                        fty = hn.type->field_types[i];
+                        break;
+                    }
+                }
+            }
+            int vhir = lower_expr(nodes, annot, hir, ast2hir, val_idx, fty);
+            if (first_val < 0)
+                first_val = vhir;
+            else
+                hir->data[prev_val].next = vhir;
+            prev_val = vhir;
+            fc = fi->next;
+        }
+        hn.child = first_val;
+        break;
+    }
+    case ANODE_FIELDACCESS: {
+        hn.kind = HIR_FIELDACCESS;
+        hn.type = annot->data[idx].type;
+        hn.sv = n->sv;
+        if (n->child >= 0)
+            hn.child = lower_expr(nodes, annot, hir, ast2hir,
+                                  n->child, NULL);
+        break;
+    }
     case ANODE_CONSTDECL:
         /* Const values are inlined at use sites; decl itself is no-op. */
         hn.kind = HIR_NONE;

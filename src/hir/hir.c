@@ -33,25 +33,27 @@
 static const char *kind_name(hkind kind)
 {
     switch (kind) {
-    case HIR_NONE:      return "NONE";
-    case HIR_FUNCDECL:  return "FUNCDECL";
-    case HIR_VARDECL:   return "VARDECL";
-    case HIR_BLOCK:     return "BLOCK";
-    case HIR_ASSIGN:    return "ASSIGN";
-    case HIR_RETURN:    return "RETURN";
-    case HIR_IF:        return "IF";
-    case HIR_MATCHARM:  return "MATCHARM";
-    case HIR_WHILE:     return "WHILE";
-    case HIR_LOOP:      return "LOOP";
-    case HIR_ILITERAL:  return "ILITERAL";
-    case HIR_FLITERAL:  return "FLITERAL";
-    case HIR_SLITERAL:  return "SLITERAL";
-    case HIR_CLITERAL:  return "CLITERAL";
-    case HIR_BINOP:     return "BINOP";
-    case HIR_UNOP:      return "UNOP";
-    case HIR_CAST:      return "CAST";
-    case HIR_IDENT:     return "IDENT";
-    default:            return "???";
+    case HIR_NONE:         return "NONE";
+    case HIR_FUNCDECL:     return "FUNCDECL";
+    case HIR_VARDECL:      return "VARDECL";
+    case HIR_BLOCK:        return "BLOCK";
+    case HIR_ASSIGN:       return "ASSIGN";
+    case HIR_RETURN:       return "RETURN";
+    case HIR_IF:           return "IF";
+    case HIR_MATCHARM:     return "MATCHARM";
+    case HIR_WHILE:        return "WHILE";
+    case HIR_LOOP:         return "LOOP";
+    case HIR_ILITERAL:     return "ILITERAL";
+    case HIR_FLITERAL:     return "FLITERAL";
+    case HIR_SLITERAL:     return "SLITERAL";
+    case HIR_CLITERAL:     return "CLITERAL";
+    case HIR_BINOP:        return "BINOP";
+    case HIR_UNOP:         return "UNOP";
+    case HIR_CAST:         return "CAST";
+    case HIR_IDENT:        return "IDENT";
+    case HIR_STRUCTLIT:    return "STRUCTLIT";
+    case HIR_FIELDACCESS:  return "FIELDACCESS";
+    default:               return "???";
     }
 }
 
@@ -126,6 +128,19 @@ char *hir_node_print(hnode node_)
     case HIR_CAST:
         snprintf(buf, 256, "%s -> %s  (child=%d, next=%d)",
                  kind_name(node_.kind),
+                 (node_.type ? node_.type->name : "?"),
+                 node_.child, node_.next);
+        break;
+    case HIR_STRUCTLIT:
+        snprintf(buf, 256, "%s %s  (child=%d, next=%d)",
+                 kind_name(node_.kind),
+                 (node_.type && node_.type->name ? node_.type->name : "?"),
+                 node_.child, node_.next);
+        break;
+    case HIR_FIELDACCESS:
+        snprintf(buf, 256, "%s .%s: %s  (child=%d, next=%d)",
+                 kind_name(node_.kind),
+                 node_.sv ? node_.sv : "?",
                  (node_.type ? node_.type->name : "?"),
                  node_.child, node_.next);
         break;
@@ -204,6 +219,17 @@ static void node_label(const hnode *n, char *buf, size_t buf_sz)
     case HIR_CAST:
         snprintf(buf, buf_sz, "%s -> %s",
                  kind_name(n->kind),
+                 (n->type ? n->type->name : "?"));
+        break;
+    case HIR_STRUCTLIT:
+        snprintf(buf, buf_sz, "%s %s",
+                 kind_name(n->kind),
+                 (n->type && n->type->name ? n->type->name : "?"));
+        break;
+    case HIR_FIELDACCESS:
+        snprintf(buf, buf_sz, "%s .%s: %s",
+                 kind_name(n->kind),
+                 n->sv ? n->sv : "?",
                  (n->type ? n->type->name : "?"));
         break;
     default:

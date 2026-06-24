@@ -55,6 +55,10 @@ typedef enum {
     HIR_UNOP,
     HIR_CAST,
     HIR_IDENT,
+
+    HIR_STRUCTLIT,
+    HIR_FIELDACCESS,
+
     HIR_COUNT,
 } hkind;
 
