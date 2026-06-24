@@ -71,6 +71,13 @@ typedef enum {
     ANODE_CONSTDECL,    /* name = value  -- compile-time constant */
     ANODE_TYPEDECL,     /* type alias — not yet implemented */
 
+    /* struct */
+    ANODE_STRUCTDEF,    /* struct { fields } */
+    ANODE_STRUCTFIELD,  /* name: type */
+    ANODE_STRUCTLIT,    /* Vec2 { x: 1, y: 1 } */
+    ANODE_FIELDINIT,    /* x: 1 — field initializer in struct literal */
+    ANODE_FIELDACCESS,  /* expr.field */
+
     ANODE_COUNT
 } anode_kind;
 
@@ -78,13 +85,13 @@ typedef enum {
  * A single AST node.  child/next are integer indices into the flat node_vector
  * (-1 means none).  The union field is interpreted according to .kind:
  *
- *   IDENT variants -> .sv  (allocated string)
- *   ILITERAL       -> .iv  (int64_t)
- *   FLITERAL       -> .fv  (double)
- *   SLITERAL       -> .sv  (allocated string)
- *   CLITERAL       -> .cv  (char)
+ *   IDENT variants -> .sv        (allocated string)
+ *   ILITERAL       -> .iv        (int64_t)
+ *   FLITERAL       -> .fv        (double)
+ *   SLITERAL       -> .sv        (allocated string)
+ *   CLITERAL       -> .cv        (char)
  *   IDENT_TYPE     -> .type_val  (const Type* pointer)
- *   BINOP / UNOP   -> .op  (tktype operator)
+ *   BINOP / UNOP   -> .op        (tktype operator)
  */
 typedef struct {
     anode_kind kind;

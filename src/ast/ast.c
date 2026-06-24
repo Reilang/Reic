@@ -59,6 +59,11 @@ static const char *kind_name(anode_kind kind)
     case ANODE_VARDECL:    return "VARDECL";
     case ANODE_CONSTDECL:  return "CONSTDECL";
     case ANODE_TYPEDECL:   return "TYPEDECL";
+    case ANODE_STRUCTDEF:  return "STRUCTDEF";
+    case ANODE_STRUCTFIELD:return "STRUCTFIELD";
+    case ANODE_STRUCTLIT:  return "STRUCTLIT";
+    case ANODE_FIELDINIT:  return "FIELDINIT";
+    case ANODE_FIELDACCESS:return "FIELDACCESS";
     default:               return "???";
     }
 }
@@ -106,6 +111,15 @@ char *anode_print(anode node_)
         snprintf(buf, 256, "%s '%c'  (child=%d, next=%d)",
                  kind_name(node_.kind),
                  node_.cv,
+                 node_.child, node_.next);
+        break;
+    case ANODE_STRUCTFIELD:
+    case ANODE_STRUCTLIT:
+    case ANODE_FIELDINIT:
+    case ANODE_FIELDACCESS:
+        snprintf(buf, 256, "%s '%s'  (child=%d, next=%d)",
+                 kind_name(node_.kind),
+                 node_.sv ? node_.sv : "(null)",
                  node_.child, node_.next);
         break;
     default:
@@ -162,6 +176,14 @@ static void node_label(const anode *n, char *buf, size_t buf_sz)
         snprintf(buf, buf_sz, "%s '%s'",
                  kind_name(n->kind),
                  binop_symbol(n->op));
+        break;
+    case ANODE_STRUCTFIELD:
+    case ANODE_STRUCTLIT:
+    case ANODE_FIELDINIT:
+    case ANODE_FIELDACCESS:
+        snprintf(buf, buf_sz, "%s '%s'",
+                 kind_name(n->kind),
+                 n->sv ? n->sv : "?");
         break;
     default:
         snprintf(buf, buf_sz, "%s", kind_name(n->kind));
