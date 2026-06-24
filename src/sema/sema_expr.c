@@ -89,6 +89,14 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
     }
     case ANODE_UNOP: {
         const Type *t = sema_expr(nodes, stack, n->child, diags, annot);
+
+        if (n->op == TK_NOT && !type_is_integer(t) && t != TYPE_BOOL) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "bitwise not requires integer operand, got '%s'",
+                     t ? t->name : "?");
+            return NULL;
+        }
+
         annot->data[idx].type = t;
         return t;
     }

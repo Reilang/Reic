@@ -173,7 +173,10 @@ const char *emit_expr(CgCtx *ctx, int idx)
             else
                 strbuf_addf(&ctx->sb, "  %s = sub %s 0, %s\n", res, ty, opnd);
         } else if (n->op == TK_NOT) {
-            strbuf_addf(&ctx->sb, "  %s = xor %s %s, -1\n", res, ty, opnd);
+            if (!type_is_float(n->type))
+                strbuf_addf(&ctx->sb, "  %s = xor %s %s, -1\n", res, ty, opnd);
+            else
+                strbuf_addf(&ctx->sb, "  %s = add %s %s, 0\n", res, ty, opnd);
         } else {
             strbuf_addf(&ctx->sb, "  %s = add %s %s, 0\n", res, ty, opnd);
         }
