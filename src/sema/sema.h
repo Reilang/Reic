@@ -77,7 +77,10 @@ typedef struct {
 typedef struct {
     bool is_used;
     const Type *type;
-    int64_t value;
+    union {
+        int64_t iv;
+        double fv;
+    };
     int ast_idx;    /* AST node index of the ANODE_CONSTDECL */
 } sym_const;
 

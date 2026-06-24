@@ -209,17 +209,27 @@ void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
         return;
     }
 
-    /* For v1: only integer literals are compile-time evaluable. */
-    if (value_idx < 0 || nodes.data[value_idx].kind != ANODE_ILITERAL) {
+    /* Compile-time constants: integer or float literals. */
+    if (value_idx < 0 || (nodes.data[value_idx].kind != ANODE_ILITERAL
+                           && nodes.data[value_idx].kind != ANODE_FLITERAL)) {
         diag_fmt(diags, LEVEL_ERROR, 0, 0,
-                 "constant '%s' must be initialized with an integer literal"
+                 "constant '%s' must be initialized with a literal"
                  " or type definition",
                  name);
         return;
     }
 
-    const Type *type = TYPE_I32;
-    int64_t value = nodes.data[value_idx].iv;
+    const Type *type;
+    int64_t iv = 0;
+    double fv = 0.0;
+
+    if (nodes.data[value_idx].kind == ANODE_FLITERAL) {
+        type = TYPE_F64;
+        fv = nodes.data[value_idx].fv;
+    } else {
+        type = TYPE_I32;
+        iv = nodes.data[value_idx].iv;
+    }
 
     /* Annotate the CONSTDECL and its name child. */
     annot->data[idx].type = type;
@@ -233,7 +243,10 @@ void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
         entry.kind = SYM_CONST;
         entry.decl_depth = cur_depth(stack);
         entry.const_.type = type;
-        entry.const_.value = value;
+        if (nodes.data[value_idx].kind == ANODE_FLITERAL)
+            entry.const_.fv = fv;
+        else
+            entry.const_.iv = iv;
         entry.const_.is_used = false;
         entry.const_.ast_idx = idx;
         sym_set_insert(scope, entry);

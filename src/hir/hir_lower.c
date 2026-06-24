@@ -348,11 +348,16 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         if (decl_ast >= 0
             && nodes.data[decl_ast].kind == ANODE_CONSTDECL) {
             /* Inline compile-time constant as a literal. */
-            hn.kind = HIR_ILITERAL;
-            hn.type = annot->data[idx].type;
             int name_idx = nodes.data[decl_ast].child;
             int value_idx = nodes.data[name_idx].next;
-            hn.iv = nodes.data[value_idx].iv;
+            hn.type = annot->data[idx].type;
+            if (nodes.data[value_idx].kind == ANODE_FLITERAL) {
+                hn.kind = HIR_FLITERAL;
+                hn.fv = nodes.data[value_idx].fv;
+            } else {
+                hn.kind = HIR_ILITERAL;
+                hn.iv = nodes.data[value_idx].iv;
+            }
         } else {
             hn.kind = HIR_IDENT;
             if (decl_ast >= 0 && ast2hir[decl_ast] >= 0)
