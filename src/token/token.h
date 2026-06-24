@@ -61,6 +61,7 @@ typedef enum {
 
     TK_COLON,
     TK_NOT,
+    TK_DOT,
 
     TK_NEXTLINE,   /* logical newline (statement separator) */
     TK_EOF,        /* end of input */

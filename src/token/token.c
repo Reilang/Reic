@@ -111,6 +111,9 @@ char *token_print(token token_)
     case TK_NOT:
         snprintf(buffer, 256, "[%d:%d] !", token_.line, token_.col);
         break;
+    case TK_DOT:
+        snprintf(buffer, 256, "[%d:%d] .", token_.line, token_.col);
+        break;
     case TK_GREATEREQUAL:
         snprintf(buffer, 256, "[%d:%d] >=", token_.line, token_.col);
         break;

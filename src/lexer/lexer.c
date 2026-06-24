@@ -34,7 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-char KEYWORDS[64][64] = {"if", "for", "while", "loop", "return", "fn", "var"};
+char KEYWORDS[64][64] = {"if", "for", "while", "loop", "return", "fn", "var",
+                         "struct", "enum", "union"};
 
 static char nextch(lexer *l)
 {
@@ -156,6 +157,7 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
                 case '<': emit_tok(tokens, TK_OABRACKET, sline, scol); break;
                 case '>': emit_tok(tokens, TK_CABRACKET, sline, scol); break;
                 case '!': emit_tok(tokens, TK_NOT,       sline, scol); break;
+                case '.': emit_tok(tokens, TK_DOT,       sline, scol); break;
                 default:  l->state = LSTATE_ERROR; continue;
                 }
                 break;
