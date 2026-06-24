@@ -58,7 +58,6 @@ static const char *kind_name(anode_kind kind)
     case ANODE_FUNCDECL:   return "FUNCDECL";
     case ANODE_VARDECL:    return "VARDECL";
     case ANODE_CONSTDECL:  return "CONSTDECL";
-    case ANODE_TYPEDECL:   return "TYPEDECL";
     case ANODE_STRUCTDEF:  return "STRUCTDEF";
     case ANODE_STRUCTFIELD:return "STRUCTFIELD";
     case ANODE_STRUCTLIT:  return "STRUCTLIT";
