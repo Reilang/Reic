@@ -24,6 +24,82 @@
  */
 #include "sema/sema_internal.h"
 
+static const Type *resolve_typename(node_vector nodes, sym_set_vector *stack,
+                                    int idx)
+{
+    const anode *n;
+
+    if (idx < 0) return NULL;
+    n = &nodes.data[idx];
+
+    if (n->kind == ANODE_IDENT_TYPE)
+        return n->type_val;
+
+    if (n->kind == ANODE_IDENT) {
+        const char *name = n->sv;
+        sym_entry *found = sym_set_find_bykey(cur_scope(stack), name);
+        if (found && found->kind == SYM_TYPE)
+            return found->type.type;
+        return type_from_name(name);
+    }
+
+    return NULL;
+}
+
+void sema_structdef_reg(node_vector nodes, sym_set_vector *stack, int cd_idx,
+                         diag_vector *diags, sema_vector *annot)
+{
+    const anode *cd = &nodes.data[cd_idx];
+    int name_idx = cd->child;
+    const anode *name_n = &nodes.data[name_idx];
+    const char *name = name_n->sv;
+    sym_set *scope = cur_scope(stack);
+
+    int sdef_idx = nodes.data[name_idx].next;
+    const anode *sdef = &nodes.data[sdef_idx];
+
+    const char *fnames[64];
+    const Type *ftypes[64];
+    int nf = 0;
+    int fcur = sdef->child;
+
+    while (fcur >= 0 && nf < 64) {
+        const anode *fld = &nodes.data[fcur];
+        const char *fname = fld->sv;
+        const Type *fty = resolve_typename(nodes, stack, fld->child);
+
+        if (!fty) {
+            const anode *tan = &nodes.data[fld->child];
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "unknown type '%s' for field '%s' of struct '%s'",
+                     (tan->kind == ANODE_IDENT) ? tan->sv : "?",
+                     fname, name);
+            fcur = fld->next;
+            continue;
+        }
+
+        fnames[nf] = fname;
+        ftypes[nf] = fty;
+        nf++;
+        fcur = fld->next;
+    }
+
+    Type *sty = type_struct_new(name, fnames, ftypes, nf, true);
+
+    annot->data[cd_idx].type = sty;
+    annot->data[name_idx].type = sty;
+    annot->data[name_idx].decl_idx = cd_idx;
+
+    {
+        sym_entry entry;
+        entry.key = name;
+        entry.kind = SYM_TYPE;
+        entry.decl_depth = cur_depth(stack);
+        entry.type.type = sty;
+        sym_set_insert(scope, entry);
+    }
+}
+
 void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                    diag_vector *diags, sema_vector *annot)
 {
@@ -128,10 +204,16 @@ void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
 
     int value_idx = nodes.data[name_idx].next;
 
+    if (value_idx >= 0 && nodes.data[value_idx].kind == ANODE_STRUCTDEF) {
+        sema_structdef_reg(nodes, stack, idx, diags, annot);
+        return;
+    }
+
     /* For v1: only integer literals are compile-time evaluable. */
     if (value_idx < 0 || nodes.data[value_idx].kind != ANODE_ILITERAL) {
         diag_fmt(diags, LEVEL_ERROR, 0, 0,
-                 "constant '%s' must be initialized with an integer literal",
+                 "constant '%s' must be initialized with an integer literal"
+                 " or type definition",
                  name);
         return;
     }

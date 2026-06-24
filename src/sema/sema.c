@@ -204,9 +204,10 @@ bool assignable_to(const Type *dst, const Type *src)
 sema_vector sema_check(node_vector nodes, diag_vector *diags)
 {
     int i;
+    bool *referenced;
+    sym_set module_scope;
     sym_set_vector stack;
     sema_vector annot;
-    sym_set_vec_new(&stack, 8);
 
     /* Pre-allocate annotation vector: one entry per AST node. */
     sema_vec_new(&annot, nodes.size);
@@ -215,6 +216,31 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
         sema_vec_push(&annot, a);
     }
 
+    /* Build referenced set to identify root nodes. */
+    referenced = calloc((size_t)nodes.size, sizeof(bool));
+    if (!referenced) abort();
+    for (i = 0; i < nodes.size; i++) {
+        if (nodes.data[i].child >= 0) referenced[nodes.data[i].child] = true;
+        if (nodes.data[i].next >= 0)  referenced[nodes.data[i].next]  = true;
+    }
+
+    /* Build module-level scope: register struct definitions. */
+    sym_set_new(&module_scope, 16, sema_sym_hash, sema_sym_eq);
+    sym_set_vec_new(&stack, 8);
+    sym_set_vec_push(&stack, module_scope);
+
+    for (i = 0; i < nodes.size; i++) {
+        if (referenced[i]) continue;
+        if (nodes.data[i].kind != ANODE_CONSTDECL) continue;
+        {
+            int n_idx = nodes.data[i].child;
+            int v_idx = nodes.data[n_idx].next;
+            if (v_idx >= 0 && nodes.data[v_idx].kind == ANODE_STRUCTDEF)
+                sema_structdef_reg(nodes, &stack, i, diags, &annot);
+        }
+    }
+
+    /* Process functions: inherit module scope. */
     for (i = 0; i < nodes.size; i++) {
         const anode *n = &nodes.data[i];
 
@@ -223,7 +249,7 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
 
         const anode *name_n = &nodes.data[n->child];
         sym_set func_scope;
-        sym_set_new(&func_scope, 16, sema_sym_hash, sema_sym_eq);
+        sym_set_copy(&func_scope, &module_scope);
 
         /* Find return type (skip params first). */
         {
@@ -245,7 +271,7 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
                 sym_entry entry;
                 entry.key = nodes.data[var_idx].sv;
                 entry.kind = SYM_VAR;
-                entry.decl_depth = 0;
+                entry.decl_depth = 1;
                 entry.var.is_assigned = true;
                 entry.var.is_used = false;
                 entry.var.type = nodes.data[type_idx].type_val;
@@ -285,6 +311,11 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
         scope_leave(&stack, diags);
     }
 
+    /* Pop and free module scope. */
+    sym_set_vec_pop(&stack);
+    sym_set_free(&module_scope);
+
     sym_set_vec_free(&stack);
+    free(referenced);
     return annot;
 }

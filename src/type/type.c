@@ -130,7 +130,7 @@ void type_sys_init(void)
 
 /* Ownership derivation for enum / union */
 
-static bool derive_is_lin(Type **types, int count)
+static bool derive_is_lin(const Type *const *types, int count)
 {
     int i;
     for (i = 0; i < count; i++) {
@@ -168,7 +168,7 @@ Type *type_ptr_of(Type *pointee)
 
 Type *type_struct_new(const char *name,
                       const char *const *field_names,
-                      Type **field_types,
+                      const Type *const *field_types,
                       int field_count,
                       bool is_lin)
 {
@@ -200,7 +200,7 @@ Type *type_struct_new(const char *name,
 
 Type *type_enum_new(const char *name,
                     const char *const *variant_names,
-                    Type **variant_types,
+                    const Type *const *variant_types,
                     int variant_count,
                     bool is_lin_override,
                     bool has_override)
@@ -236,7 +236,7 @@ Type *type_enum_new(const char *name,
 
 Type *type_union_new(const char *name,
                      const char *const *field_names,
-                     Type **field_types,
+                     const Type *const *field_types,
                      int field_count,
                      bool is_lin_override,
                      bool has_override)

@@ -75,7 +75,7 @@ struct Type {
         };
         /* TYPEK_STRUCT / TYPEK_ENUM / TYPEK_UNION */
         struct {
-            Type **field_types;
+            const Type **field_types;
             const char **field_names;
             int field_count;
         };
@@ -107,20 +107,20 @@ Type *type_ptr_of(Type *pointee);
 
 Type *type_struct_new(const char *name,
                       const char *const *field_names,
-                      Type **field_types,
+                      const Type *const *field_types,
                       int field_count,
                       bool is_lin);
 
 Type *type_enum_new(const char *name,
                     const char *const *variant_names,
-                    Type **variant_types,
+                    const Type *const *variant_types,
                     int variant_count,
                     bool is_lin_override,
                     bool has_override);
 
 Type *type_union_new(const char *name,
                      const char *const *field_names,
-                     Type **field_types,
+                     const Type *const *field_types,
                      int field_count,
                      bool is_lin_override,
                      bool has_override);
