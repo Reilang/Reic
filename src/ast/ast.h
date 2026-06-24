@@ -41,7 +41,7 @@ typedef enum {
     ANODE_IDENT,        /* unresolved reference (expression context) */
     ANODE_IDENT_FUNC,   /* function name */
     ANODE_IDENT_VAR,    /* variable name (declaration site) */
-    ANODE_IDENT_TYPE,   /* type name (resolved to Type* in .type_val) */
+    ANODE_IDENT_TYPE,   /* type name (resolved to Type* in .ty) */
 
     /* literals */
     ANODE_ILITERAL,     /* integer: value in .iv */
@@ -90,7 +90,7 @@ typedef enum {
  *   FLITERAL       -> .fv        (double)
  *   SLITERAL       -> .sv        (allocated string)
  *   CLITERAL       -> .cv        (char)
- *   IDENT_TYPE     -> .type_val  (const Type* pointer)
+ *   IDENT_TYPE     -> .ty        (const Type* pointer)
  *   BINOP / UNOP   -> .op        (tktype operator)
  */
 typedef struct {
@@ -103,7 +103,7 @@ typedef struct {
         char cv;
         char *sv;
         tktype op;
-        const Type *type_val;
+        const Type *ty;
     };
 } anode;
 

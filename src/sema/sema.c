@@ -257,7 +257,7 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
             while (cur >= 0 && nodes.data[cur].kind == ANODE_VARDECL)
                 cur = nodes.data[cur].next;
             if (cur >= 0 && nodes.data[cur].kind == ANODE_IDENT_TYPE)
-                annot.data[i].type = nodes.data[cur].type_val;
+                annot.data[i].type = nodes.data[cur].ty;
         }
 
         /* Add parameters to function scope. */
@@ -274,12 +274,12 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
                 entry.decl_depth = 1;
                 entry.var.is_assigned = true;
                 entry.var.is_used = false;
-                entry.var.type = nodes.data[type_idx].type_val;
+                entry.var.type = nodes.data[type_idx].ty;
                 entry.var.ast_idx = cur;
                 sym_set_insert(&func_scope, entry);
 
                 /* Annotate parameter VARDECL. */
-                annot.data[cur].type = nodes.data[type_idx].type_val;
+                annot.data[cur].type = nodes.data[type_idx].ty;
 
                 cur = vd->next;
             }

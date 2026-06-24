@@ -33,7 +33,7 @@ static const Type *resolve_typename(node_vector nodes, sym_set_vector *stack,
     n = &nodes.data[idx];
 
     if (n->kind == ANODE_IDENT_TYPE)
-        return n->type_val;
+        return n->ty;
 
     if (n->kind == ANODE_IDENT) {
         const char *name = n->sv;
@@ -126,7 +126,7 @@ void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
     {
         int cur = name_n->next;
         if (cur >= 0 && nodes.data[cur].kind == ANODE_IDENT_TYPE) {
-            type = nodes.data[cur].type_val;
+            type = nodes.data[cur].ty;
             type_idx = cur;
             cur = nodes.data[cur].next;
         }

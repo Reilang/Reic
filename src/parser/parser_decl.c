@@ -104,7 +104,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
                 return -1;
             }
             ptype_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[ptype_idx].type_val = ty;
+            nodes->data[ptype_idx].ty = ty;
         }
         p->cursor++;
 
@@ -163,7 +163,7 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
             return -1;
         }
         rettype_idx = new_node(nodes, ANODE_IDENT_TYPE);
-        nodes->data[rettype_idx].type_val = ty;
+        nodes->data[rettype_idx].ty = ty;
     }
     p->cursor++;
 
@@ -248,7 +248,7 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
                 return -1;
             }
             type_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[type_idx].type_val = ty;
+            nodes->data[type_idx].ty = ty;
         }
         p->cursor++;
 
@@ -402,7 +402,7 @@ int parse_structfield(parser *p, node_vector *nodes, diag_vector *diags)
         Type *ty = type_from_name(tk.value.string);
         if (ty) {
             type_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[type_idx].type_val = ty;
+            nodes->data[type_idx].ty = ty;
         } else {
             type_idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
         }
