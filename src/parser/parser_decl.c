@@ -303,7 +303,13 @@ int parse_constdecl(parser *p, node_vector *nodes, diag_vector *diags)
     p->cursor++;  /* skip '=' */
     skip_newlines(p);
 
-    value_idx = parse_expr(p, nodes, diags, 0);
+    /* struct / enum / union type definitions */
+    tk = curtok(p);
+    if (tk.type == TK_KEYWORD && strcmp(tk.value.string, "struct") == 0) {
+        value_idx = parse_structdef(p, nodes, diags);
+    } else {
+        value_idx = parse_expr(p, nodes, diags, 0);
+    }
     if (value_idx < 0) return -1;
 
     constdecl_idx = new_node(nodes, ANODE_CONSTDECL);
@@ -311,4 +317,98 @@ int parse_constdecl(parser *p, node_vector *nodes, diag_vector *diags)
     nodes->data[name_idx].next = value_idx;
 
     return constdecl_idx;
+}
+
+int parse_structdef(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    int structdef_idx = new_node(nodes, ANODE_STRUCTDEF);
+    int first_field = -1;
+    int last_field = -1;
+
+    p->cursor++;  /* skip 'struct' */
+    skip_newlines(p);
+
+    if (curtok(p).type != TK_OBRACE) {
+        diag_add(diags, LEVEL_ERROR, "expected '{' after 'struct'",
+                 curtok(p).line, curtok(p).col);
+        sync(p);
+        return structdef_idx;
+    }
+    p->cursor++;  /* skip '{' */
+
+    while (curtok(p).type != TK_CBRACE && !at_eof(p)) {
+        skip_newlines(p);
+        if (curtok(p).type == TK_CBRACE) break;
+
+        int field_idx = parse_structfield(p, nodes, diags);
+        if (field_idx < 0) {
+            sync(p);
+            continue;
+        }
+
+        if (first_field < 0)
+            first_field = field_idx;
+        else
+            nodes->data[last_field].next = field_idx;
+        last_field = field_idx;
+
+        skip_newlines(p);
+        if (curtok(p).type == TK_COMMA)
+            p->cursor++;
+    }
+
+    if (curtok(p).type == TK_CBRACE)
+        p->cursor++;
+
+    nodes->data[structdef_idx].child = first_field;
+    return structdef_idx;
+}
+
+int parse_structfield(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    token tk = curtok(p);
+    int field_idx, type_idx;
+
+    if (tk.type != TK_IDENT) {
+        diag_add(diags, LEVEL_ERROR, "expected field name",
+                 tk.line, tk.col);
+        sync(p);
+        return -1;
+    }
+
+    field_idx = new_node(nodes, ANODE_STRUCTFIELD);
+    nodes->data[field_idx].sv = strdup(tk.value.string);
+    p->cursor++;
+
+    skip_newlines(p);
+    if (curtok(p).type != TK_COLON) {
+        diag_add(diags, LEVEL_ERROR, "expected ':' after field name",
+                 curtok(p).line, curtok(p).col);
+        sync(p);
+        return field_idx;
+    }
+    p->cursor++;
+    skip_newlines(p);
+
+    tk = curtok(p);
+    if (tk.type != TK_IDENT) {
+        diag_add(diags, LEVEL_ERROR, "expected type name",
+                 tk.line, tk.col);
+        sync(p);
+        return field_idx;
+    }
+
+    {
+        Type *ty = type_from_name(tk.value.string);
+        if (ty) {
+            type_idx = new_node(nodes, ANODE_IDENT_TYPE);
+            nodes->data[type_idx].type_val = ty;
+        } else {
+            type_idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
+        }
+    }
+    p->cursor++;
+
+    nodes->data[field_idx].child = type_idx;
+    return field_idx;
 }

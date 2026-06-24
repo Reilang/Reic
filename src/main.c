@@ -36,26 +36,17 @@
 int main(void)
 {
     type_sys_init();
-    char src_raw[] = "fn main(a: int32, b: int32) -> int32 {\n"
-                     "    MAX_VAL = 100\n"
-                     "    var x: int32 := 1\n"
-                     "    var y := x + MAX_VAL\n"
-                     "    x := x + y\n"
-                     "    if (x) {\n"
-                     "        = 10 =>\n"
-                     "            var z := 42\n"
-                     "            x := z\n"
-                     "        < 20 =>\n"
-                     "            return y\n"
-                     "    }\n"
-                     "    while (x < MAX_VAL) {\n"
-                     "        x := x + 1\n"
-                     "    }\n"
-                     "    loop {\n"
-                     "        y := y - 1\n"
-                     "    }\n"
-                     "    return x\n"
-                     "}\n";
+    char src_raw[] =
+        "Vec2 = struct {\n"
+        "    x: int32\n"
+        "    y: int32\n"
+        "}\n"
+        "\n"
+        "fn main() -> int32 {\n"
+        "    var v := Vec2 { x: 1, y: 2 }\n"
+        "    v.x := v.y + 1\n"
+        "    return v.x\n"
+        "}\n";
 
     lexer lexer_;
     token_vector tokens;

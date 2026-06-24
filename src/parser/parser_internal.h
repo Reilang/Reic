@@ -66,4 +66,13 @@ int parse_assign(parser *p, node_vector *nodes, diag_vector *diags);
 int is_arm_op(tktype t);
 int read_arm_op(parser *p);
 
+/* ---- struct (parser_decl.c / parser_expr.c) ---- */
+
+int parse_structdef(parser *p, node_vector *nodes, diag_vector *diags);
+int parse_structfield(parser *p, node_vector *nodes, diag_vector *diags);
+int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,
+                    int type_idx);
+int parse_fieldaccess(parser *p, node_vector *nodes, diag_vector *diags,
+                      int expr_idx);
+
 #endif /* PARSER_PARSER_INTERNAL_H */

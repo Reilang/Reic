@@ -48,6 +48,18 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
     if (tk.type == TK_IDENT) {
         int idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
         p->cursor++;
+
+        /* postfix: struct literal  { fields }  or field access  .name */
+        for (;;) {
+            tk = curtok(p);
+            if (tk.type == TK_OBRACE) {
+                idx = parse_structlit(p, nodes, diags, idx);
+            } else if (tk.type == TK_DOT) {
+                idx = parse_fieldaccess(p, nodes, diags, idx);
+            } else {
+                break;
+            }
+        }
         return idx;
     }
     if (tk.type == TK_OPAREN) {
@@ -69,6 +81,95 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
              tk.line, tk.col);
     sync(p);
     return -1;
+}
+
+int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,
+                    int type_idx)
+{
+    int lit_idx = new_node(nodes, ANODE_STRUCTLIT);
+    int first_field = -1;
+    int last_field = -1;
+
+    /* steal the type name from the IDENT node */
+    nodes->data[lit_idx].sv = nodes->data[type_idx].sv;
+
+    p->cursor++;  /* skip '{' */
+
+    while (curtok(p).type != TK_CBRACE && !at_eof(p)) {
+        token ftk;
+        int val_idx, finit_idx;
+
+        skip_newlines(p);
+        if (curtok(p).type == TK_CBRACE) break;
+
+        ftk = curtok(p);
+        if (ftk.type != TK_IDENT) {
+            diag_add(diags, LEVEL_ERROR, "expected field name",
+                     ftk.line, ftk.col);
+            sync(p);
+            break;
+        }
+        p->cursor++;
+
+        skip_newlines(p);
+        if (curtok(p).type != TK_COLON) {
+            diag_add(diags, LEVEL_ERROR, "expected ':' after field name",
+                     curtok(p).line, curtok(p).col);
+            sync(p);
+            break;
+        }
+        p->cursor++;
+        skip_newlines(p);
+
+        val_idx = parse_expr(p, nodes, diags, 0);
+        if (val_idx < 0) break;
+
+        finit_idx = new_node(nodes, ANODE_FIELDINIT);
+        nodes->data[finit_idx].sv = strdup(ftk.value.string);
+        nodes->data[finit_idx].child = val_idx;
+
+        if (first_field < 0)
+            first_field = finit_idx;
+        else
+            nodes->data[last_field].next = finit_idx;
+        last_field = finit_idx;
+
+        skip_newlines(p);
+        if (curtok(p).type == TK_COMMA)
+            p->cursor++;
+    }
+
+    if (curtok(p).type == TK_CBRACE)
+        p->cursor++;
+
+    nodes->data[lit_idx].child = first_field;
+    return lit_idx;
+}
+
+int parse_fieldaccess(parser *p, node_vector *nodes, diag_vector *diags,
+                      int expr_idx)
+{
+    int fa_idx;
+
+    p->cursor++;  /* skip '.' */
+    skip_newlines(p);
+
+    {
+        token tk = curtok(p);
+        if (tk.type != TK_IDENT) {
+            diag_add(diags, LEVEL_ERROR, "expected field name after '.'",
+                     tk.line, tk.col);
+            sync(p);
+            return expr_idx;
+        }
+        p->cursor++;
+
+        fa_idx = new_node(nodes, ANODE_FIELDACCESS);
+        nodes->data[fa_idx].sv = strdup(tk.value.string);
+        nodes->data[fa_idx].child = expr_idx;
+    }
+
+    return fa_idx;
 }
 
 int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec)
@@ -112,11 +213,21 @@ int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec)
 
 int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
 {
-    token tk = curtok(p);
-    int var_idx, expr_idx, assign_idx;
+    int target_idx, expr_idx, assign_idx;
 
-    var_idx = new_ident(nodes, tk.value.string, ANODE_IDENT_VAR);
-    p->cursor++;
+    /* parse target as a general expression:  x  or  obj.x */
+    target_idx = parse_expr(p, nodes, diags, 0);
+    if (target_idx < 0) return -1;
+
+    {
+        anode_kind tk = nodes->data[target_idx].kind;
+        if (tk != ANODE_IDENT && tk != ANODE_FIELDACCESS) {
+            diag_add(diags, LEVEL_ERROR, "invalid assignment target",
+                     curtok(p).line, curtok(p).col);
+            sync(p);
+            return target_idx;
+        }
+    }
 
     skip_newlines(p);
     if (curtok(p).type != TK_COLON) {
@@ -140,8 +251,8 @@ int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
     if (expr_idx < 0) return -1;
 
     assign_idx = new_node(nodes, ANODE_ASSIGN);
-    nodes->data[assign_idx].child = var_idx;
-    nodes->data[var_idx].next = expr_idx;
+    nodes->data[assign_idx].child = target_idx;
+    nodes->data[target_idx].next = expr_idx;
 
     return assign_idx;
 }

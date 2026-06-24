@@ -132,7 +132,8 @@ void tokenize(lexer *l, token_vector *tokens, diag_vector *diags)
             if (cur == '(' || cur == ')' || cur == '[' || cur == ']'
                 || cur == '{' || cur == '}' || cur == ',' || cur == '+'
                 || cur == '-' || cur == '*' || cur == '/' || cur == ':'
-                || cur == '=' || cur == '<' || cur == '>' || cur == '!') {
+                || cur == '=' || cur == '<' || cur == '>' || cur == '!'
+                || cur == '.') {
                 switch (cur) {
                 case '+': emit_tok(tokens, TK_ADD,       sline, scol); break;
                 case '-': emit_tok(tokens, TK_MINUS,     sline, scol); break;
