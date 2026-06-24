@@ -46,6 +46,8 @@ typedef struct {
     int reg_cnt;
     char **alloca_map;
     const Type *func_ret_type;
+    const Type *emitted_types[64];
+    int emitted_count;
 } CgCtx;
 
 /* ---- helpers (codegen.c) ---- */
@@ -58,10 +60,12 @@ const char *cast_op(const Type *src, const Type *dst);
 const char *cg_new_reg(CgCtx *ctx);
 const char *cg_new_label(CgCtx *ctx, const char *prefix);
 void collect_vardecls(CgCtx *ctx, int idx);
+void emit_all_struct_types(CgCtx *ctx);
 
 /* ---- expressions (codegen_expr.c) ---- */
 
 const char *emit_expr(CgCtx *ctx, int idx);
+const char *emit_ptr(CgCtx *ctx, int idx);
 
 /* ---- statements (codegen_stmt.c) ---- */
 

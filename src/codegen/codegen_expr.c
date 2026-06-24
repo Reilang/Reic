@@ -24,6 +24,54 @@
  */
 #include "codegen/codegen_internal.h"
 
+const char *emit_ptr(CgCtx *ctx, int idx)
+{
+    hnode *n;
+
+    if (idx < 0) return NULL;
+    n = &ctx->hir->data[idx];
+
+    switch (n->kind) {
+    case HIR_IDENT: {
+        int decl_idx = (int)n->iv;
+        return ctx->alloca_map[decl_idx];
+    }
+    case HIR_FIELDACCESS: {
+        char base_buf[64], sty_buf[64];
+        const char *base = emit_ptr(ctx, n->child);
+        const Type *stype;
+        int fi, i;
+
+        if (!base) return NULL;
+        snprintf(base_buf, sizeof(base_buf), "%s", base);
+
+        stype = ctx->hir->data[n->child].type;
+        if (!stype || stype->kind != TYPEK_STRUCT) return NULL;
+
+        fi = -1;
+        for (i = 0; i < stype->field_count; i++) {
+            if (strcmp(stype->field_names[i], n->sv) == 0) {
+                fi = i;
+                break;
+            }
+        }
+        if (fi < 0) return NULL;
+
+        {
+            const char *sty = llvm_ty(stype);
+            const char *gep = cg_new_reg(ctx);
+            snprintf(sty_buf, sizeof(sty_buf), "%s", sty);
+            strbuf_addf(&ctx->sb,
+                        "  %s = getelementptr %s, %s* %s, i32 0, i32 %d\n",
+                        gep, sty_buf, sty_buf, base_buf, fi);
+            return gep;
+        }
+    }
+    default:
+        return NULL;
+    }
+}
+
 const char *emit_expr(CgCtx *ctx, int idx)
 {
     if (idx < 0) {
@@ -141,6 +189,65 @@ const char *emit_expr(CgCtx *ctx, int idx)
         strbuf_addf(&ctx->sb, "  %s = %s %s %s to %s\n",
                     res, op, src_ty, inner, dst_ty);
         return res;
+    }
+    case HIR_STRUCTLIT: {
+        char sty_buf[64], tmp_buf[64];
+        const char *sty = llvm_ty(n->type);
+        const char *tmp_ptr = cg_new_reg(ctx);
+        int fc, fi;
+
+        snprintf(sty_buf, sizeof(sty_buf), "%s", sty);
+        snprintf(tmp_buf, sizeof(tmp_buf), "%s", tmp_ptr);
+        strbuf_addf(&ctx->sb, "  %s = alloca %s\n", tmp_buf, sty_buf);
+
+        fc = n->child;
+        fi = 0;
+        while (fc >= 0) {
+            char fval_buf[64], fty_buf[64];
+            const char *fval = emit_expr(ctx, fc);
+            const char *fty = llvm_ty(ctx->hir->data[fc].type);
+            snprintf(fval_buf, sizeof(fval_buf), "%s", fval);
+            snprintf(fty_buf, sizeof(fty_buf), "%s", fty);
+
+            {
+                const char *gep = cg_new_reg(ctx);
+                strbuf_addf(&ctx->sb,
+                            "  %s = getelementptr %s, %s* %s, i32 0, i32 %d\n",
+                            gep, sty_buf, sty_buf, tmp_buf, fi);
+                strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",
+                            fty_buf, fval_buf, fty_buf, gep);
+            }
+
+            fc = ctx->hir->data[fc].next;
+            fi++;
+        }
+
+        {
+            const char *reg = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb, "  %s = load %s, %s* %s\n",
+                        reg, sty_buf, sty_buf, tmp_buf);
+            return reg;
+        }
+    }
+    case HIR_FIELDACCESS: {
+        char ptr_buf[64], fty_buf[64];
+        const char *ptr = emit_ptr(ctx, idx);
+        const char *fty = llvm_ty(n->type);
+
+        if (!ptr) {
+            char *b = buf_alloc();
+            snprintf(b, 64, "undef");
+            return b;
+        }
+        snprintf(ptr_buf, sizeof(ptr_buf), "%s", ptr);
+        snprintf(fty_buf, sizeof(fty_buf), "%s", fty);
+
+        {
+            const char *reg = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb, "  %s = load %s, %s* %s\n",
+                        reg, fty_buf, fty_buf, ptr_buf);
+            return reg;
+        }
     }
     default:
         break;

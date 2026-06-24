@@ -467,6 +467,12 @@ const char *type_llvm_name(const Type *t)
     case TYPEK_PTR:
         return "ptr";
     case TYPEK_STRUCT:
+        if (t->name) {
+            static char buf[64];
+            snprintf(buf, sizeof(buf), "%%%s", t->name);
+            return buf;
+        }
+        return "ptr";
     case TYPEK_ENUM:
     case TYPEK_UNION:
         return "ptr";

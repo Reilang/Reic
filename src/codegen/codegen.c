@@ -196,6 +196,43 @@ static void emit_func(CgCtx *ctx, int func_idx)
     ctx->alloca_map = NULL;
 }
 
+static void emit_struct_type(CgCtx *ctx, const Type *t)
+{
+    int i;
+
+    if (!t || t->kind != TYPEK_STRUCT || !t->name) return;
+
+    for (i = 0; i < ctx->emitted_count; i++) {
+        if (ctx->emitted_types[i] == t) return;
+    }
+
+    /* Emit nested struct types first. */
+    for (i = 0; i < t->field_count; i++) {
+        if (t->field_types[i] && t->field_types[i]->kind == TYPEK_STRUCT)
+            emit_struct_type(ctx, t->field_types[i]);
+    }
+
+    strbuf_addf(&ctx->sb, "%%%s = type { ", t->name);
+    for (i = 0; i < t->field_count; i++) {
+        if (i > 0) strbuf_addf(&ctx->sb, ", ");
+        strbuf_addf(&ctx->sb, "%s", llvm_ty(t->field_types[i]));
+    }
+    strbuf_addf(&ctx->sb, " }\n");
+
+    if (ctx->emitted_count < 64)
+        ctx->emitted_types[ctx->emitted_count++] = t;
+}
+
+void emit_all_struct_types(CgCtx *ctx)
+{
+    int i;
+    for (i = 0; i < ctx->hir->size; i++) {
+        const Type *t = ctx->hir->data[i].type;
+        if (t && t->kind == TYPEK_STRUCT)
+            emit_struct_type(ctx, t);
+    }
+}
+
 static void emit_program(CgCtx *ctx)
 {
     /* Find root HIR_FUNCDECL nodes (not referenced as child/next by others). */
@@ -224,7 +261,10 @@ int codegen_emit(hir_vector *hir, const char *output_path)
     ctx.reg_cnt = 0;
     ctx.alloca_map = NULL;
     ctx.func_ret_type = TYPE_VOID;
+    ctx.emitted_count = 0;
+    memset(ctx.emitted_types, 0, sizeof(ctx.emitted_types));
 
+    emit_all_struct_types(&ctx);
     emit_program(&ctx);
 
     FILE *f = fopen(output_path, "w");

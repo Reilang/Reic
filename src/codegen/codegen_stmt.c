@@ -213,16 +213,24 @@ void emit_stmt(CgCtx *ctx, int idx)
 
     case HIR_ASSIGN: {
         int target_idx = n->child;
-        int decl_idx = (int)ctx->hir->data[target_idx].iv;
-        const char *ptr = ctx->alloca_map[decl_idx];
-
-        int rhs_idx = ctx->hir->data[target_idx].next;
+        hnode *target = &ctx->hir->data[target_idx];
+        int rhs_idx = target->next;
         char rhs_buf[64];
         const char *rhs = emit_expr(ctx, rhs_idx);
         snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs);
 
-        const char *ty = llvm_ty(ctx->hir->data[target_idx].type);
-        strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n", ty, rhs_buf, ty, ptr);
+        if (target->kind == HIR_FIELDACCESS) {
+            const char *ptr = emit_ptr(ctx, target_idx);
+            const char *fty = llvm_ty(target->type);
+            strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",
+                        fty, rhs_buf, fty, ptr);
+        } else {
+            int decl_idx = (int)target->iv;
+            const char *ptr = ctx->alloca_map[decl_idx];
+            const char *ty = llvm_ty(target->type);
+            strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",
+                        ty, rhs_buf, ty, ptr);
+        }
         break;
     }
 
