@@ -451,12 +451,12 @@ static const char *int_llvm_name(int width)
 
 const char *type_llvm_name(const Type *t)
 {
-    if (!t) return "unit";
+    if (!t) return "void";
 
     switch (t->kind) {
     case TYPEK_PRIM:
         switch (t->prim) {
-        case PRIM_UNIT:  return "unit";
+        case PRIM_UNIT:  return "void";
         case PRIM_BOOL:  return "i1";
         case PRIM_INT:   return int_llvm_name(t->width);
         case PRIM_NAT:   return int_llvm_name(t->width);
@@ -480,7 +480,7 @@ const char *type_llvm_name(const Type *t)
     case TYPEK_TYPE:
         return "";
     }
-    return "unit";
+    return "void";
 }
 
 int type_width(const Type *t)
