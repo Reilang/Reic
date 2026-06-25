@@ -235,6 +235,9 @@ void emit_all_struct_types(CgCtx *ctx)
 
 static void emit_program(CgCtx *ctx)
 {
+    /* gcc says it would be negative, make it happy */
+    if (ctx->hir->size <= 0) return;
+
     /* Find root HIR_FUNCDECL nodes (not referenced as child/next by others). */
     bool *referenced = calloc((size_t)ctx->hir->size, sizeof(bool));
 
