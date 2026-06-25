@@ -352,6 +352,9 @@ int parse_structdef(parser *p, node_vector *nodes, diag_vector *diags)
             nodes->data[last_field].next = field_idx;
         last_field = field_idx;
 
+        skip_newlines(p);
+        if (curtok(p).type == TK_COMMA)
+            p->cursor++;
     }
 
     if (curtok(p).type == TK_CBRACE)

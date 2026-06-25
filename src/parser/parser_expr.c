@@ -135,6 +135,8 @@ int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,
         last_field = finit_idx;
 
         skip_newlines(p);
+        if (curtok(p).type == TK_COMMA)
+            p->cursor++;
     }
 
     if (curtok(p).type == TK_CBRACE)
