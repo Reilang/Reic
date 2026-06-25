@@ -38,8 +38,8 @@ int main(void)
     type_sys_init();
     char src_raw[] =
         "Vec2 = struct {\n"
-        "    x: int32\n"
-        "    y: int32\n"
+        "    x: int32,\n"
+        "    y: int32,\n"
         "}\n"
         "\n"
         "fn main() -> int32 {\n"

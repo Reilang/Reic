@@ -311,8 +311,8 @@ static void test_struct_codegen(void)
 {
     printf("--- test_struct_codegen ---\n");
     char src_raw[] = "fn test() -> int32 {\n"
-                 "  Vec2 = struct { x: int32 y: int32 }\n"
-                 "  var v := Vec2 { x: 1 y: 2 }\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
                  "  return v.x\n"
                  "}\n";
     GoldenFixture fx;

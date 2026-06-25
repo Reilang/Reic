@@ -199,8 +199,8 @@ static void test_struct_ok(void)
 {
     printf("--- test_struct_ok ---\n");
     char src_raw[] = "fn test() -> int32 {\n"
-                 "  Vec2 = struct { x: int32 y: int32 }\n"
-                 "  var v := Vec2 { x: 1 y: 2 }\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
                  "  return v.x\n"
                  "}\n";
     SemaFixture fx;
@@ -217,7 +217,7 @@ static void test_struct_field_unknown(void)
 {
     printf("--- test_struct_field_unknown ---\n");
     char src_raw[] = "fn test() -> int32 {\n"
-                 "  Vec2 = struct { x: int32 y: int32 }\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
                  "  var v := Vec2 { x: 1, z: 2 }\n"
                  "  return v.x\n"
                  "}\n";
@@ -235,8 +235,8 @@ static void test_structlit_type_mismatch(void)
 {
     printf("--- test_structlit_type_mismatch ---\n");
     char src_raw[] = "fn test() -> unit {\n"
-                 "  Vec2 = struct { x: int32 y: int32 }\n"
-                 "  var v := Vec2 { x: 3.14 y: 2 }\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 3.14, y: 2 }\n"
                  "}\n";
     SemaFixture fx;
     sema_init(&fx, src_raw);
@@ -252,8 +252,8 @@ static void test_field_assign_ok(void)
 {
     printf("--- test_field_assign_ok ---\n");
     char src_raw[] = "fn test() -> int32 {\n"
-                 "  Vec2 = struct { x: int32 y: int32 }\n"
-                 "  var v := Vec2 { x: 1 y: 2 }\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
                  "  v.x := 42\n"
                  "  return v.x\n"
                  "}\n";
@@ -271,8 +271,8 @@ static void test_field_access_unknown(void)
 {
     printf("--- test_field_access_unknown ---\n");
     char src_raw[] = "fn test() -> int32 {\n"
-                 "  Vec2 = struct { x: int32 y: int32 }\n"
-                 "  var v := Vec2 { x: 1 y: 2 }\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
                  "  return v.z\n"
                  "}\n";
     SemaFixture fx;
