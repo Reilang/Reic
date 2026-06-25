@@ -249,7 +249,7 @@ static void test_structlit(void)
 {
     printf("--- test_structlit ---\n");
     char src_raw[] = "fn test() -> unit {\n"
-                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  Vec2 = struct { x: int32 y: int32 }\n"
                  "  var v := Vec2 { x: 1, y: 2 }\n"
                  "}\n";
     ParseFixture fx;
@@ -267,7 +267,7 @@ static void test_fieldaccess(void)
 {
     printf("--- test_fieldaccess ---\n");
     char src_raw[] = "fn test() -> unit {\n"
-                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  Vec2 = struct { x: int32 y: int32 }\n"
                  "  var v := Vec2 { x: 1, y: 2 }\n"
                  "  var a := v.x\n"
                  "}\n";
@@ -285,7 +285,7 @@ static void test_fieldassign(void)
 {
     printf("--- test_fieldassign ---\n");
     char src_raw[] = "fn test() -> unit {\n"
-                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  Vec2 = struct { x: int32 y: int32 }\n"
                  "  var v := Vec2 { x: 1, y: 2 }\n"
                  "  v.x := 42\n"
                  "}\n";
