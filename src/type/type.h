@@ -31,7 +31,7 @@
 #include <stdint.h>
 
 typedef enum {
-    TYPEK_PRIM,      /* void, bool, intN, natN, floatN      */
+    TYPEK_PRIM,      /* unit, bool, intN, natN, floatN      */
     TYPEK_PTR,       /* *T                                  */
     TYPEK_STRUCT,    /* struct { ... }                      */
     TYPEK_ENUM,      /* enum { ... }   — tagged union       */
@@ -41,7 +41,7 @@ typedef enum {
 } TypeKind;
 
 typedef enum {
-    PRIM_VOID,
+    PRIM_UNIT,
     PRIM_BOOL,
     PRIM_INT,
     PRIM_NAT,
@@ -67,7 +67,7 @@ struct Type {
         /* TYPEK_PRIM */
         struct {
             PrimKind prim;
-            int width;      /* bit width; 0 for void and bool */
+            int width;      /* bit width; 0 for unit and bool */
         };
         /* TYPEK_PTR */
         struct {
@@ -94,7 +94,7 @@ struct Type {
 
 DECLARE_VECTOR(Type*, type_ptr)
 
-extern Type *TYPE_VOID;
+extern Type *TYPE_UNIT;
 extern Type *TYPE_BOOL;
 extern Type *TYPE_I8,  *TYPE_I16,  *TYPE_I32,  *TYPE_I64;
 extern Type *TYPE_U8,  *TYPE_U16,  *TYPE_U32,  *TYPE_U64;

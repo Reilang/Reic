@@ -132,7 +132,7 @@ static void test_duplicate_var(void)
 static void test_type_mismatch_assign(void)
 {
     printf("--- test_type_mismatch_assign ---\n");
-    char src_raw[] = "fn test() -> void {\n  var x: int32 := 1\n  x := 2\n}\n";
+    char src_raw[] = "fn test() -> unit {\n  var x: int32 := 1\n  x := 2\n}\n";
     SemaFixture fx;
     sema_init(&fx, src_raw);
     sema_run(&fx);
@@ -160,7 +160,7 @@ static void test_constdecl_resolve(void)
 static void test_unused_var_warning(void)
 {
     printf("--- test_unused_var_warning ---\n");
-    char src_raw[] = "fn test() -> void {\n  var x: int32 := 1\n}\n";
+    char src_raw[] = "fn test() -> unit {\n  var x: int32 := 1\n}\n";
     SemaFixture fx;
     sema_init(&fx, src_raw);
     sema_run(&fx);
@@ -175,7 +175,7 @@ static void test_if_arm_scope(void)
 {
     printf("--- test_if_arm_scope ---\n");
     /* variable declared inside an if-arm should not leak to another arm. */
-    char src_raw[] = "fn test() -> void {\n"
+    char src_raw[] = "fn test() -> unit {\n"
                  "  var x: int32 := 0\n"
                  "  if (x) {\n"
                  "    = 0 =>\n"

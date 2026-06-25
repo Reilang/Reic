@@ -260,7 +260,7 @@ int codegen_emit(hir_vector *hir, const char *output_path)
     ctx.lbl_cnt = 0;
     ctx.reg_cnt = 0;
     ctx.alloca_map = NULL;
-    ctx.func_ret_type = TYPE_VOID;
+    ctx.func_ret_type = TYPE_UNIT;
     ctx.emitted_count = 0;
     memset(ctx.emitted_types, 0, sizeof(ctx.emitted_types));
 

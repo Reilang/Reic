@@ -81,7 +81,7 @@ static int ptr_cache_count;
 
 /* Built-in type singletons */
 
-Type *TYPE_VOID;
+Type *TYPE_UNIT;
 Type *TYPE_BOOL;
 Type *TYPE_I8,  *TYPE_I16,  *TYPE_I32,  *TYPE_I64;
 Type *TYPE_U8,  *TYPE_U16,  *TYPE_U32,  *TYPE_U64;
@@ -104,9 +104,9 @@ static Type *prim_new(PrimKind prim, int width, bool is_lin, const char *name)
 
 void type_sys_init(void)
 {
-    if (TYPE_VOID) return;
+    if (TYPE_UNIT) return;
 
-    TYPE_VOID = PRIM(VOID,  0,  true,  "void");
+    TYPE_UNIT = PRIM(UNIT,  0,  true,  "unit");
     TYPE_BOOL = PRIM(BOOL,  0,  false, "bool");
     TYPE_I8   = PRIM(INT,   8,  false, "int8");
     TYPE_I16  = PRIM(INT,   16, false, "int16");
@@ -371,7 +371,7 @@ Type *type_session_choose(const char *const *labels,
 /* Lookup */
 
 static struct { const char *name; Type *type; } builtin_table[] = {
-    { "void",    NULL },
+    { "unit",    NULL },
     { "bool",    NULL },
     { "int8",    NULL },
     { "int16",   NULL },
@@ -391,8 +391,8 @@ static bool builtin_table_patched;
 
 static void patch_builtin_table(void)
 {
-    if (!TYPE_VOID) type_sys_init();
-    builtin_table[0].type  = TYPE_VOID;
+    if (!TYPE_UNIT) type_sys_init();
+    builtin_table[0].type  = TYPE_UNIT;
     builtin_table[1].type  = TYPE_BOOL;
     builtin_table[2].type  = TYPE_I8;
     builtin_table[3].type  = TYPE_I16;
@@ -451,12 +451,12 @@ static const char *int_llvm_name(int width)
 
 const char *type_llvm_name(const Type *t)
 {
-    if (!t) return "void";
+    if (!t) return "unit";
 
     switch (t->kind) {
     case TYPEK_PRIM:
         switch (t->prim) {
-        case PRIM_VOID:  return "void";
+        case PRIM_UNIT:  return "unit";
         case PRIM_BOOL:  return "i1";
         case PRIM_INT:   return int_llvm_name(t->width);
         case PRIM_NAT:   return int_llvm_name(t->width);
@@ -480,7 +480,7 @@ const char *type_llvm_name(const Type *t)
     case TYPEK_TYPE:
         return "";
     }
-    return "void";
+    return "unit";
 }
 
 int type_width(const Type *t)
@@ -501,7 +501,7 @@ static void type_print_impl(const Type *t, strbuf *sb, int depth);
 static void print_prim(const Type *t, strbuf *sb)
 {
     switch (t->prim) {
-    case PRIM_VOID:  strbuf_add(sb, "void"); break;
+    case PRIM_UNIT:  strbuf_add(sb, "unit"); break;
     case PRIM_BOOL:  strbuf_add(sb, "bool"); break;
     case PRIM_INT:   strbuf_addf(sb, "int%d", t->width); break;
     case PRIM_NAT:   strbuf_addf(sb, "nat%d", t->width); break;

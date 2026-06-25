@@ -102,7 +102,7 @@ static void test_funcdef(void)
 static void test_vardecl_typed_init(void)
 {
     printf("--- test_vardecl_typed_init ---\n");
-    char src_raw[] = "fn test() -> void {\n  var x: int32 := 42\n}\n";
+    char src_raw[] = "fn test() -> unit {\n  var x: int32 := 42\n}\n";
     ParseFixture fx;
     parse_init(&fx, src_raw);
     parse_run(&fx);
@@ -117,7 +117,7 @@ static void test_vardecl_typed_init(void)
 static void test_vardecl_inferred(void)
 {
     printf("--- test_vardecl_inferred ---\n");
-    char src_raw[] = "fn test() -> void {\n  var y := 100\n}\n";
+    char src_raw[] = "fn test() -> unit {\n  var y := 100\n}\n";
     ParseFixture fx;
     parse_init(&fx, src_raw);
     parse_run(&fx);
@@ -131,7 +131,7 @@ static void test_vardecl_inferred(void)
 static void test_assign(void)
 {
     printf("--- test_assign ---\n");
-    char src_raw[] = "fn test() -> void {\n  var x: int32 := 0\n  x := 42\n}\n";
+    char src_raw[] = "fn test() -> unit {\n  var x: int32 := 0\n  x := 42\n}\n";
     ParseFixture fx;
     parse_init(&fx, src_raw);
     parse_run(&fx);
@@ -145,7 +145,7 @@ static void test_assign(void)
 static void test_if_match(void)
 {
     printf("--- test_if_match ---\n");
-    char src_raw[] = "fn test() -> void {\n"
+    char src_raw[] = "fn test() -> unit {\n"
                  "  if (x) {\n"
                  "    = 1 =>\n"
                  "      return 1\n"
@@ -167,7 +167,7 @@ static void test_if_match(void)
 static void test_while_loop(void)
 {
     printf("--- test_while_loop ---\n");
-    char src_raw[] = "fn test() -> void {\n"
+    char src_raw[] = "fn test() -> unit {\n"
                  "  while (x < 10) {\n"
                  "    x := x + 1\n"
                  "  }\n"
@@ -190,7 +190,7 @@ static void test_binop_precedence(void)
 {
     printf("--- test_binop_precedence ---\n");
     /* 1 + 2 * 3  should parse as 1 + (2 * 3), not (1 + 2) * 3 */
-    char src_raw[] = "fn test() -> void {\n  var x := 1 + 2 * 3\n}\n";
+    char src_raw[] = "fn test() -> unit {\n  var x := 1 + 2 * 3\n}\n";
     ParseFixture fx;
     parse_init(&fx, src_raw);
     parse_run(&fx);

@@ -119,7 +119,7 @@ void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
         }
     }
 
-    const Type *type = TYPE_VOID;
+    const Type *type = TYPE_UNIT;
     int type_idx = -1;
     int init_idx = -1;
 
@@ -135,7 +135,7 @@ void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
     }
 
     {
-        const Type *init_type = TYPE_VOID;
+        const Type *init_type = TYPE_UNIT;
 
         if (init_idx >= 0)
             init_type = sema_expr(nodes, stack, init_idx, diags, annot);
