@@ -229,6 +229,77 @@ static void test_constdecl(void)
     parse_free(&fx);
 }
 
+static void test_structdef(void)
+{
+    printf("--- test_structdef ---\n");
+    char src_raw[] = "fn test() -> unit {\n  Vec2 = struct { x: int32\n y: int32 }\n}\n";
+    ParseFixture fx;
+    parse_init(&fx, src_raw);
+    parse_run(&fx);
+
+    ASSERT(fx.diags.size == 0, "no parse errors");
+    ASSERT(count_kind(&fx.nodes, ANODE_CONSTDECL) > 0, "has CONSTDECL");
+    ASSERT(count_kind(&fx.nodes, ANODE_STRUCTDEF) > 0, "has STRUCTDEF");
+    ASSERT(count_kind(&fx.nodes, ANODE_STRUCTFIELD) >= 2, "has at least 2 STRUCTFIELD");
+
+    parse_free(&fx);
+}
+
+static void test_structlit(void)
+{
+    printf("--- test_structlit ---\n");
+    char src_raw[] = "fn test() -> unit {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "}\n";
+    ParseFixture fx;
+    parse_init(&fx, src_raw);
+    parse_run(&fx);
+
+    ASSERT(fx.diags.size == 0, "no parse errors");
+    ASSERT(count_kind(&fx.nodes, ANODE_STRUCTLIT) > 0, "has STRUCTLIT");
+    ASSERT(count_kind(&fx.nodes, ANODE_FIELDINIT) >= 2, "has at least 2 FIELDINIT");
+
+    parse_free(&fx);
+}
+
+static void test_fieldaccess(void)
+{
+    printf("--- test_fieldaccess ---\n");
+    char src_raw[] = "fn test() -> unit {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "  var a := v.x\n"
+                 "}\n";
+    ParseFixture fx;
+    parse_init(&fx, src_raw);
+    parse_run(&fx);
+
+    ASSERT(fx.diags.size == 0, "no parse errors");
+    ASSERT(count_kind(&fx.nodes, ANODE_FIELDACCESS) > 0, "has FIELDACCESS");
+
+    parse_free(&fx);
+}
+
+static void test_fieldassign(void)
+{
+    printf("--- test_fieldassign ---\n");
+    char src_raw[] = "fn test() -> unit {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "  v.x := 42\n"
+                 "}\n";
+    ParseFixture fx;
+    parse_init(&fx, src_raw);
+    parse_run(&fx);
+
+    ASSERT(fx.diags.size == 0, "no parse errors");
+    ASSERT(count_kind(&fx.nodes, ANODE_ASSIGN) > 0, "has ASSIGN");
+    ASSERT(count_kind(&fx.nodes, ANODE_FIELDACCESS) > 0, "has FIELDACCESS (target)");
+
+    parse_free(&fx);
+}
+
 int main(void)
 {
     test_funcdef();
@@ -239,6 +310,10 @@ int main(void)
     test_while_loop();
     test_binop_precedence();
     test_constdecl();
+    test_structdef();
+    test_structlit();
+    test_fieldaccess();
+    test_fieldassign();
 
     TEST_SUMMARY();
     return TEST_RETURN();

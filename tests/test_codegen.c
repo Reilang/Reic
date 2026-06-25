@@ -307,6 +307,34 @@ static void test_while_loop(void)
     golden_free(&fx);
 }
 
+static void test_struct_codegen(void)
+{
+    printf("--- test_struct_codegen ---\n");
+    char src_raw[] = "fn test() -> int32 {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "  return v.x\n"
+                 "}\n";
+    GoldenFixture fx;
+    golden_init(&fx, src_raw);
+
+    ASSERT_EQ_INT(golden_run(&fx), 0, "codegen succeeds");
+
+    char *ir = golden_read(GOLDEN_PATH);
+    ASSERT(ir != NULL, "output file exists");
+    if (!ir) { golden_free(&fx); return; }
+
+    ASSERT(strstr(ir, "%Vec2 = type { i32, i32 }") != NULL,
+           "contains struct type definition");
+    ASSERT(strstr(ir, "alloca %Vec2") != NULL,
+           "contains struct alloca");
+    ASSERT(strstr(ir, "getelementptr") != NULL,
+           "contains GEP for field access");
+
+    free(ir);
+    golden_free(&fx);
+}
+
 int main(void)
 {
     test_simple_func();
@@ -316,6 +344,7 @@ int main(void)
     test_float_arithmetic();
     test_float_comparison();
     test_while_loop();
+    test_struct_codegen();
 
     TEST_SUMMARY();
     return TEST_RETURN();

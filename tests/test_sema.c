@@ -195,6 +195,113 @@ static void test_if_arm_scope(void)
     sema_free(&fx);
 }
 
+static void test_struct_ok(void)
+{
+    printf("--- test_struct_ok ---\n");
+    char src_raw[] = "fn test() -> int32 {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "  return v.x\n"
+                 "}\n";
+    SemaFixture fx;
+    sema_init(&fx, src_raw);
+    sema_run(&fx);
+
+    ASSERT_EQ_INT(count_diags_at(&fx.diags, LEVEL_ERROR), 0,
+                  "struct def, literal, and field access pass sema");
+
+    sema_free(&fx);
+}
+
+static void test_struct_field_unknown(void)
+{
+    printf("--- test_struct_field_unknown ---\n");
+    char src_raw[] = "fn test() -> int32 {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, z: 2 }\n"
+                 "  return v.x\n"
+                 "}\n";
+    SemaFixture fx;
+    sema_init(&fx, src_raw);
+    sema_run(&fx);
+
+    ASSERT(count_diags_at(&fx.diags, LEVEL_ERROR) > 0,
+           "error on unknown field in struct literal");
+
+    sema_free(&fx);
+}
+
+static void test_structlit_type_mismatch(void)
+{
+    printf("--- test_structlit_type_mismatch ---\n");
+    char src_raw[] = "fn test() -> unit {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 3.14, y: 2 }\n"
+                 "}\n";
+    SemaFixture fx;
+    sema_init(&fx, src_raw);
+    sema_run(&fx);
+
+    ASSERT(count_diags_at(&fx.diags, LEVEL_ERROR) > 0,
+           "error on type mismatch in struct literal field");
+
+    sema_free(&fx);
+}
+
+static void test_field_assign_ok(void)
+{
+    printf("--- test_field_assign_ok ---\n");
+    char src_raw[] = "fn test() -> int32 {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "  v.x := 42\n"
+                 "  return v.x\n"
+                 "}\n";
+    SemaFixture fx;
+    sema_init(&fx, src_raw);
+    sema_run(&fx);
+
+    ASSERT_EQ_INT(count_diags_at(&fx.diags, LEVEL_ERROR), 0,
+                  "field assignment passes sema");
+
+    sema_free(&fx);
+}
+
+static void test_field_access_unknown(void)
+{
+    printf("--- test_field_access_unknown ---\n");
+    char src_raw[] = "fn test() -> int32 {\n"
+                 "  Vec2 = struct { x: int32, y: int32 }\n"
+                 "  var v := Vec2 { x: 1, y: 2 }\n"
+                 "  return v.z\n"
+                 "}\n";
+    SemaFixture fx;
+    sema_init(&fx, src_raw);
+    sema_run(&fx);
+
+    ASSERT(count_diags_at(&fx.diags, LEVEL_ERROR) > 0,
+           "error on unknown field access");
+
+    sema_free(&fx);
+}
+
+static void test_not_struct_access(void)
+{
+    printf("--- test_not_struct_access ---\n");
+    char src_raw[] = "fn test() -> int32 {\n"
+                 "  var x := 42\n"
+                 "  return x.y\n"
+                 "}\n";
+    SemaFixture fx;
+    sema_init(&fx, src_raw);
+    sema_run(&fx);
+
+    ASSERT(count_diags_at(&fx.diags, LEVEL_ERROR) > 0,
+           "error on field access of non-struct type");
+
+    sema_free(&fx);
+}
+
 int main(void)
 {
     test_var_resolve_ok();
@@ -204,6 +311,12 @@ int main(void)
     test_constdecl_resolve();
     test_unused_var_warning();
     test_if_arm_scope();
+    test_struct_ok();
+    test_struct_field_unknown();
+    test_structlit_type_mismatch();
+    test_field_assign_ok();
+    test_field_access_unknown();
+    test_not_struct_access();
 
     TEST_SUMMARY();
     return TEST_RETURN();
