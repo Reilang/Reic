@@ -37,6 +37,7 @@ typedef enum {
     TYPEK_ENUM,      /* enum { ... }   — tagged union       */
     TYPEK_UNION,     /* union { ... }  — untagged union     */
     TYPEK_SESSION,   /* session { protocol }                */
+    TYPEK_ARRAY,     /* [N]T — fixed-length array           */
     TYPEK_TYPE,      /* TYPE — meta-type of all types       */
 } TypeKind;
 
@@ -88,6 +89,11 @@ struct Type {
             Type **sess_branches;
             int sess_branch_count;
         };
+        /* TYPEK_ARRAY */
+        struct {
+            Type *elem_type;
+            int len;
+        };
         /* TYPEK_TYPE: no extra fields */
     };
 };
@@ -136,6 +142,8 @@ Type *type_session_choose(const char *const *labels,
                           int branch_count,
                           Type *cont);
 Type *type_session_end(void);
+
+Type *type_array_new(Type *elem_type, int len);
 
 Type *type_from_name(const char *name);
 bool type_is_integer(const Type *t);

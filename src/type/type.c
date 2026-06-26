@@ -290,6 +290,22 @@ Type *type_session_end(void)
     return t;
 }
 
+/* Array */
+
+Type *type_array_new(Type *elem_type, int len)
+{
+    Type *t = arena_alloc(sizeof(Type));
+
+    t->kind = TYPEK_ARRAY;
+    t->is_lin = elem_type ? elem_type->is_lin : false;
+    t->id = type_next_id++;
+    t->name = NULL;
+    t->elem_type = elem_type;
+    t->len = len;
+
+    return t;
+}
+
 Type *type_session_send(Type *payload, Type *cont)
 {
     Type *t = arena_alloc(sizeof(Type));
@@ -479,6 +495,14 @@ const char *type_llvm_name(const Type *t)
     case TYPEK_SESSION:
     case TYPEK_TYPE:
         return "";
+    case TYPEK_ARRAY:
+        if (t->elem_type) {
+            static char arr_buf[128];
+            snprintf(arr_buf, sizeof(arr_buf), "[%d x %s]",
+                     t->len, type_llvm_name(t->elem_type));
+            return arr_buf;
+        }
+        return "[0 x i8]";
     }
     return "void";
 }
@@ -623,6 +647,10 @@ static void type_print_impl(const Type *t, strbuf *sb, int depth)
         break;
     case TYPEK_TYPE:
         strbuf_add(sb, "TYPE");
+        break;
+    case TYPEK_ARRAY:
+        strbuf_addf(sb, "[%d]", t->len);
+        type_print_impl(t->elem_type, sb, depth + 1);
         break;
     }
 }
