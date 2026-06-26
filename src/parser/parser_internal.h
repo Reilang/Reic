@@ -80,5 +80,6 @@ int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,
 int parse_fieldaccess(parser *p, node_vector *nodes, diag_vector *diags,
                       int expr_idx);
 int parse_arraylit(parser *p, node_vector *nodes, diag_vector *diags);
+int parse_index(parser *p, node_vector *nodes, diag_vector *diags, int target_idx);
 
 #endif /* PARSER_PARSER_INTERNAL_H */

@@ -57,6 +57,8 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
             tk = curtok(p);
             if (tk.type == TK_OPAREN) {
                 idx = parse_call(p, nodes, diags, idx);
+            } else if (tk.type == TK_OBRACKET) {
+                idx = parse_index(p, nodes, diags, idx);
             } else if (tk.type == TK_OBRACE) {
                 idx = parse_structlit(p, nodes, diags, idx);
             } else if (tk.type == TK_DOT) {
@@ -278,7 +280,7 @@ int parse_assign(parser *p, node_vector *nodes, diag_vector *diags)
 
     {
         anode_kind tk = nodes->data[target_idx].kind;
-        if (tk != ANODE_IDENT && tk != ANODE_FIELDACCESS) {
+        if (tk != ANODE_IDENT && tk != ANODE_FIELDACCESS && tk != ANODE_INDEX) {
             diag_add(diags, LEVEL_ERROR, "invalid assignment target",
                      curtok(p).line, curtok(p).col);
             sync(p);
@@ -392,4 +394,29 @@ int parse_arraylit(parser *p, node_vector *nodes, diag_vector *diags)
 
     nodes->data[lit_idx].child = first_elem;
     return lit_idx;
+}
+
+int parse_index(parser *p, node_vector *nodes, diag_vector *diags, int target_idx)
+{
+    int idx_node = new_node(nodes, ANODE_INDEX);
+
+    p->cursor++; /* skip '[' */
+    skip_newlines(p);
+
+    int idx_expr = parse_expr(p, nodes, diags, 0);
+    if (idx_expr < 0) {
+        if (curtok(p).type == TK_CBRACKET) p->cursor++;
+        return target_idx;
+    }
+
+    skip_newlines(p);
+    if (curtok(p).type != TK_CBRACKET)
+        diag_add(diags, LEVEL_ERROR, "expected ']' after index",
+                 curtok(p).line, curtok(p).col);
+    else
+        p->cursor++;
+
+    nodes->data[idx_node].child = target_idx;
+    nodes->data[target_idx].next = idx_expr;
+    return idx_node;
 }
