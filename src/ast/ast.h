@@ -75,6 +75,7 @@ typedef enum {
     ANODE_STRUCTLIT,    /* Vec2 { x: 1, y: 1 } */
     ANODE_FIELDINIT,    /* x: 1 — field initializer in struct literal */
     ANODE_FIELDACCESS,  /* expr.field */
+    ANODE_ARRAYLIT,     /* [elem, elem, ...] */
 
     ANODE_COUNT
 } anode_kind;

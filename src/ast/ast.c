@@ -63,6 +63,7 @@ static const char *kind_name(anode_kind kind)
     case ANODE_STRUCTLIT:  return "STRUCTLIT";
     case ANODE_FIELDINIT:  return "FIELDINIT";
     case ANODE_FIELDACCESS:return "FIELDACCESS";
+    case ANODE_ARRAYLIT:   return "ARRAYLIT";
     default:               return "???";
     }
 }
