@@ -58,6 +58,7 @@ typedef enum {
 
     HIR_STRUCTLIT,
     HIR_FIELDACCESS,
+    HIR_CALL,
 
     HIR_COUNT,
 } hkind;

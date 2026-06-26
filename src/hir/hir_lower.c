@@ -367,10 +367,28 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         }
         break;
     }
-    case ANODE_CALL:
-        /* Not yet supported — emit placeholder. */
-        hn.kind = HIR_NONE;
+    case ANODE_CALL: {
+        hn.kind = HIR_CALL;
+        hn.type = annot->data[idx].type;
+
+        int callee_idx = n->child;
+        hn.sv = nodes.data[callee_idx].sv;
+
+        int first_arg = -1;
+        int prev_arg = -1;
+        int arg = nodes.data[callee_idx].next;
+        while (arg >= 0) {
+            int arg_hir = lower_expr(nodes, annot, hir, ast2hir, arg, NULL);
+            if (first_arg < 0)
+                first_arg = arg_hir;
+            else
+                hir->data[prev_arg].next = arg_hir;
+            prev_arg = arg_hir;
+            arg = nodes.data[arg].next;
+        }
+        hn.child = first_arg;
         break;
+    }
     case ANODE_INDEX:
         hn.kind = HIR_NONE;
         break;
