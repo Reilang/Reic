@@ -252,6 +252,30 @@ const char *emit_expr(CgCtx *ctx, int idx)
             return reg;
         }
     }
+    case HIR_CALL: {
+        char arg_regs[64][64];
+        const char *arg_tys[64];
+        int nargs = 0;
+        int arg = n->child;
+
+        while (arg >= 0 && nargs < 64) {
+            const char *r = emit_expr(ctx, arg);
+            snprintf(arg_regs[nargs], sizeof(arg_regs[0]), "%s", r);
+            arg_tys[nargs] = llvm_ty(ctx->hir->data[arg].type);
+            nargs++;
+            arg = ctx->hir->data[arg].next;
+        }
+
+        const char *ret_ty = llvm_ty(n->type);
+        const char *res = cg_new_reg(ctx);
+        strbuf_addf(&ctx->sb, "  %s = call %s @%s(", res, ret_ty, n->sv);
+        for (int i = 0; i < nargs; i++) {
+            if (i > 0) strbuf_addf(&ctx->sb, ", ");
+            strbuf_addf(&ctx->sb, "%s %s", arg_tys[i], arg_regs[i]);
+        }
+        strbuf_addf(&ctx->sb, ")\n");
+        return res;
+    }
     default:
         break;
     }
