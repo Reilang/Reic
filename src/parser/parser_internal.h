@@ -44,6 +44,10 @@ void sync(parser *p);
 int parse_block_body(parser *p, node_vector *nodes, diag_vector *diags,
                      const char *context);
 
+/* ---- types (parser_decl.c) ---- */
+
+int parse_type(parser *p, node_vector *nodes, diag_vector *diags, bool strict);
+
 /* ---- declarations (parser_decl.c) ---- */
 
 int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags);

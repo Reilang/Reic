@@ -30,6 +30,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+int parse_type(parser *p, node_vector *nodes, diag_vector *diags, bool strict)
+{
+    token tk = curtok(p);
+
+    if (tk.type != TK_IDENT) {
+        diag_add(diags, LEVEL_ERROR, "expected type name",
+                 tk.line, tk.col);
+        return -1;
+    }
+
+    {
+        Type *ty = type_from_name(tk.value.string);
+        if (!ty) {
+            if (strict)
+                diag_add(diags, LEVEL_ERROR, "unknown type name",
+                         tk.line, tk.col);
+            return -1;
+        }
+        p->cursor++;
+        int type_idx = new_node(nodes, ANODE_IDENT_TYPE);
+        nodes->data[type_idx].ty = ty;
+        return type_idx;
+    }
+}
+
 int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
 {
     token tk;
@@ -88,25 +113,11 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
         }
         p->cursor++;
 
-        tk = curtok(p);
-        if (tk.type != TK_IDENT) {
-            diag_add(diags, LEVEL_ERROR, "expected type name",
-                    tk.line, tk.col);
+        ptype_idx = parse_type(p, nodes, diags, true);
+        if (ptype_idx < 0) {
             sync(p);
             return -1;
         }
-        {
-            Type *ty = type_from_name(tk.value.string);
-            if (!ty) {
-                diag_add(diags, LEVEL_ERROR, "unknown type name",
-                        tk.line, tk.col);
-                sync(p);
-                return -1;
-            }
-            ptype_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[ptype_idx].ty = ty;
-        }
-        p->cursor++;
 
         vardecl_idx = new_node(nodes, ANODE_VARDECL);
         nodes->data[vardecl_idx].child = pname_idx;
@@ -147,25 +158,11 @@ int parse_funcdef(parser *p, node_vector *nodes, diag_vector *diags)
     p->cursor++;
 
     skip_newlines(p);
-    tk = curtok(p);
-    if (tk.type != TK_IDENT) {
-        diag_add(diags, LEVEL_ERROR, "expected return type after '->'",
-                tk.line, tk.col);
+    rettype_idx = parse_type(p, nodes, diags, true);
+    if (rettype_idx < 0) {
         sync(p);
         return -1;
     }
-    {
-        Type *ty = type_from_name(tk.value.string);
-        if (!ty) {
-            diag_add(diags, LEVEL_ERROR, "unknown type name",
-                    tk.line, tk.col);
-            sync(p);
-            return -1;
-        }
-        rettype_idx = new_node(nodes, ANODE_IDENT_TYPE);
-        nodes->data[rettype_idx].ty = ty;
-    }
-    p->cursor++;
 
     skip_newlines(p);
     if (curtok(p).type != TK_OBRACE) {
@@ -236,24 +233,15 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
         skip_newlines(p);
         init_idx = parse_expr(p, nodes, diags, 0);
         if (init_idx < 0) return -1;
-    } else if (curtok(p).type == TK_IDENT) {
-        /* var x: type */
-        tk = curtok(p);
-        {
-            Type *ty = type_from_name(tk.value.string);
-            if (!ty) {
-                diag_add(diags, LEVEL_ERROR, "unknown type name",
-                        tk.line, tk.col);
-                sync(p);
-                return -1;
-            }
-            type_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[type_idx].ty = ty;
+    } else {
+        /* var x: type [:= expr] */
+        type_idx = parse_type(p, nodes, diags, true);
+        if (type_idx < 0) {
+            sync(p);
+            return -1;
         }
-        p->cursor++;
 
         skip_newlines(p);
-        /* optionally: `:= expr` */
         if (curtok(p).type == TK_COLON) {
             p->cursor++;
             skip_newlines(p);
@@ -268,11 +256,6 @@ int parse_vardecl(parser *p, node_vector *nodes, diag_vector *diags)
             init_idx = parse_expr(p, nodes, diags, 0);
             if (init_idx < 0) return -1;
         }
-    } else {
-        diag_add(diags, LEVEL_ERROR, "expected type name or ':='",
-                 curtok(p).line, curtok(p).col);
-        sync(p);
-        return -1;
     }
 
     vardecl_idx = new_node(nodes, ANODE_VARDECL);
@@ -396,24 +379,15 @@ int parse_structfield(parser *p, node_vector *nodes, diag_vector *diags)
     p->cursor++;
     skip_newlines(p);
 
-    tk = curtok(p);
-    if (tk.type != TK_IDENT) {
-        diag_add(diags, LEVEL_ERROR, "expected type name",
-                 tk.line, tk.col);
-        sync(p);
-        return field_idx;
-    }
-
-    {
-        Type *ty = type_from_name(tk.value.string);
-        if (ty) {
-            type_idx = new_node(nodes, ANODE_IDENT_TYPE);
-            nodes->data[type_idx].ty = ty;
-        } else {
+    type_idx = parse_type(p, nodes, diags, false);
+    if (type_idx < 0) {
+        /* fallback: forward reference to user-defined type */
+        tk = curtok(p);
+        if (tk.type == TK_IDENT) {
             type_idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
+            p->cursor++;
         }
     }
-    p->cursor++;
 
     nodes->data[field_idx].child = type_idx;
     return field_idx;
