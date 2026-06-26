@@ -1,6 +1,6 @@
 # ReiC
 
-ReiC is the reference compiler for the [Rei](https://codeberg.org/reilang) language,
+ReiC is the reference compiler for the [Rei](https://github.com/reilang) language,
 compiling Rei source code to native executables via LLVM IR.
 
 > **Status: early development.** The full pipeline (lex -> parse -> sema -> lower -> codegen)
