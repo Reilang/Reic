@@ -137,8 +137,9 @@ int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,
     int first_field = -1;
     int last_field = -1;
 
-    /* steal the type name from the IDENT node */
+    /* keep type name on structlit for downstream, link IDENT as first child */
     nodes->data[lit_idx].sv = nodes->data[type_idx].sv;
+    nodes->data[lit_idx].child = type_idx;
 
     p->cursor++;  /* skip '{' */
 
@@ -195,7 +196,7 @@ int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,
     if (curtok(p).type == TK_CBRACE)
         p->cursor++;
 
-    nodes->data[lit_idx].child = first_field;
+    nodes->data[type_idx].next = first_field;
     return lit_idx;
 }
 

@@ -380,7 +380,7 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
 
         int first_val = -1;
         int prev_val = -1;
-        int fc = n->child;
+        int fc = nodes.data[n->child].next;
         while (fc >= 0) {
             const anode *fi = &nodes.data[fc];
             int val_idx = fi->child;

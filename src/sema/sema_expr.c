@@ -119,7 +119,7 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
         }
 
         {
-            int fc = n->child;
+            int fc = nodes.data[n->child].next;
             while (fc >= 0) {
                 const anode *fi = &nodes.data[fc];
                 const char *fn = fi->sv;
