@@ -34,6 +34,43 @@ int parse_type(parser *p, node_vector *nodes, diag_vector *diags, bool strict)
 {
     token tk = curtok(p);
 
+    /* [N]T — fixed-length array */
+    if (tk.type == TK_OBRACKET) {
+        int len, elem_idx;
+
+        p->cursor++; /* skip '[' */
+        tk = curtok(p);
+        if (tk.type != TK_ILITER) {
+            diag_add(diags, LEVEL_ERROR, "expected array length",
+                     tk.line, tk.col);
+            return -1;
+        }
+        len = (int)tk.value.integer;
+        if (len <= 0) {
+            diag_add(diags, LEVEL_ERROR, "array length must be positive",
+                     tk.line, tk.col);
+            return -1;
+        }
+        p->cursor++;
+
+        if (curtok(p).type != TK_CBRACKET) {
+            diag_add(diags, LEVEL_ERROR, "expected ']' after array length",
+                     curtok(p).line, curtok(p).col);
+            return -1;
+        }
+        p->cursor++;
+
+        elem_idx = parse_type(p, nodes, diags, strict);
+        if (elem_idx < 0) return -1;
+
+        {
+            Type *arr_ty = type_array_new(nodes->data[elem_idx].ty, len);
+            int type_idx = new_node(nodes, ANODE_IDENT_TYPE);
+            nodes->data[type_idx].ty = arr_ty;
+            return type_idx;
+        }
+    }
+
     if (tk.type != TK_IDENT) {
         diag_add(diags, LEVEL_ERROR, "expected type name",
                  tk.line, tk.col);

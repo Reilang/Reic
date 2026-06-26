@@ -292,7 +292,7 @@ Type *type_session_end(void)
 
 /* Array */
 
-Type *type_array_new(Type *elem_type, int len)
+Type *type_array_new(const Type *elem_type, int len)
 {
     Type *t = arena_alloc(sizeof(Type));
 
@@ -300,7 +300,7 @@ Type *type_array_new(Type *elem_type, int len)
     t->is_lin = elem_type ? elem_type->is_lin : false;
     t->id = type_next_id++;
     t->name = NULL;
-    t->elem_type = elem_type;
+    t->elem_type = (Type *)elem_type;
     t->len = len;
 
     return t;

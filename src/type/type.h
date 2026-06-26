@@ -143,7 +143,7 @@ Type *type_session_choose(const char *const *labels,
                           Type *cont);
 Type *type_session_end(void);
 
-Type *type_array_new(Type *elem_type, int len);
+Type *type_array_new(const Type *elem_type, int len);
 
 Type *type_from_name(const char *name);
 bool type_is_integer(const Type *t);
