@@ -62,6 +62,7 @@ int parse_return(parser *p, node_vector *nodes, diag_vector *diags);
 
 int parse_expr(parser *p, node_vector *nodes, diag_vector *diags, int min_prec);
 int parse_primary(parser *p, node_vector *nodes, diag_vector *diags);
+int parse_call(parser *p, node_vector *nodes, diag_vector *diags, int callee_idx);
 int parse_assign(parser *p, node_vector *nodes, diag_vector *diags);
 int is_arm_op(tktype t);
 int read_arm_op(parser *p);

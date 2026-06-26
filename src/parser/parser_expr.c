@@ -49,10 +49,12 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
         int idx = new_ident(nodes, tk.value.string, ANODE_IDENT);
         p->cursor++;
 
-        /* postfix: struct literal  { fields }  or field access  .name */
+        /* postfix: call (args), struct literal { fields }, field access .name */
         for (;;) {
             tk = curtok(p);
-            if (tk.type == TK_OBRACE) {
+            if (tk.type == TK_OPAREN) {
+                idx = parse_call(p, nodes, diags, idx);
+            } else if (tk.type == TK_OBRACE) {
                 idx = parse_structlit(p, nodes, diags, idx);
             } else if (tk.type == TK_DOT) {
                 idx = parse_fieldaccess(p, nodes, diags, idx);
@@ -81,6 +83,51 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
              tk.line, tk.col);
     sync(p);
     return -1;
+}
+
+int parse_call(parser *p, node_vector *nodes, diag_vector *diags, int callee_idx)
+{
+    int call_idx = new_node(nodes, ANODE_CALL);
+    int first_arg = -1;
+    int last_arg = -1;
+
+    p->cursor++;  /* skip '(' */
+
+    while (curtok(p).type != TK_CPAREN && !at_eof(p)) {
+        int arg_idx;
+
+        skip_newlines(p);
+        if (curtok(p).type == TK_CPAREN) break;
+
+        arg_idx = parse_expr(p, nodes, diags, 0);
+        if (arg_idx < 0) break;
+
+        if (first_arg < 0)
+            first_arg = arg_idx;
+        else
+            nodes->data[last_arg].next = arg_idx;
+        last_arg = arg_idx;
+
+        skip_newlines(p);
+        if (curtok(p).type == TK_CPAREN) break;
+        if (curtok(p).type != TK_COMMA) {
+            diag_add(diags, LEVEL_ERROR, "expected ',' or ')' in argument list",
+                     curtok(p).line, curtok(p).col);
+            sync(p);
+            break;
+        }
+        p->cursor++;  /* skip ',' */
+    }
+
+    if (curtok(p).type == TK_CPAREN)
+        p->cursor++;
+    else
+        diag_add(diags, LEVEL_ERROR, "expected ')' to close argument list",
+                 curtok(p).line, curtok(p).col);
+
+    nodes->data[call_idx].child = callee_idx;
+    nodes->data[callee_idx].next = first_arg;
+    return call_idx;
 }
 
 int parse_structlit(parser *p, node_vector *nodes, diag_vector *diags,

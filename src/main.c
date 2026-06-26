@@ -42,9 +42,13 @@ int main(void)
         "    y: int32,\n"
         "}\n"
         "\n"
+        "fn add(a: int32, b: int32) -> int32 {\n"
+        "    return a + b\n"
+        "}\n"
+        "\n"
         "fn main() -> int32 {\n"
         "    var v := Vec2 { x: 1, y: 2 }\n"
-        "    v.x := v.y + 1\n"
+        "    v.x := add(v.y, 1)\n"
         "    return v.x\n"
         "}\n";
 
