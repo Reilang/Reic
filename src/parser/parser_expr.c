@@ -33,6 +33,9 @@ int parse_primary(parser *p, node_vector *nodes, diag_vector *diags)
 {
     token tk = curtok(p);
 
+    if (tk.type == TK_OBRACKET)
+        return parse_arraylit(p, nodes, diags);
+
     if (tk.type == TK_ILITER) {
         int idx = new_node(nodes, ANODE_ILITERAL);
         nodes->data[idx].iv = tk.value.integer;
@@ -348,4 +351,45 @@ int read_arm_op(parser *p)
 
     p->cursor++;
     return (int)base;
+}
+
+int parse_arraylit(parser *p, node_vector *nodes, diag_vector *diags)
+{
+    int lit_idx = new_node(nodes, ANODE_ARRAYLIT);
+    int first_elem = -1;
+    int last_elem = -1;
+
+    p->cursor++; /* skip '[' */
+
+    while (curtok(p).type != TK_CBRACKET && !at_eof(p)) {
+        skip_newlines(p);
+        if (curtok(p).type == TK_CBRACKET) break;
+
+        int elem_idx = parse_expr(p, nodes, diags, 0);
+        if (elem_idx < 0) break;
+
+        if (first_elem < 0)
+            first_elem = elem_idx;
+        else
+            nodes->data[last_elem].next = elem_idx;
+        last_elem = elem_idx;
+
+        skip_newlines(p);
+        if (curtok(p).type == TK_CBRACKET) break;
+        if (curtok(p).type != TK_COMMA) {
+            diag_add(diags, LEVEL_ERROR, "expected ',' or ']' in array literal",
+                     curtok(p).line, curtok(p).col);
+            break;
+        }
+        p->cursor++; /* skip ',' */
+    }
+
+    if (curtok(p).type == TK_CBRACKET)
+        p->cursor++;
+    else
+        diag_add(diags, LEVEL_ERROR, "expected ']' to close array literal",
+                 curtok(p).line, curtok(p).col);
+
+    nodes->data[lit_idx].child = first_elem;
+    return lit_idx;
 }

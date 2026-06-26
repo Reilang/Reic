@@ -49,6 +49,7 @@ int main(void)
         "fn main() -> int32 {\n"
         "    var v := Vec2 { x: 1, y: 2 }\n"
         "    v.x := add(v.y, 1)\n"
+        "    var xs := [1, 2, 3]\n"
         "    return v.x\n"
         "}\n";
 
