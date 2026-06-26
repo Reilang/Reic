@@ -240,6 +240,13 @@ sema_vector sema_check(node_vector nodes, diag_vector *diags)
         }
     }
 
+    /* Register function declarations in module scope. */
+    for (i = 0; i < nodes.size; i++) {
+        if (referenced[i]) continue;
+        if (nodes.data[i].kind != ANODE_FUNCDECL) continue;
+        sema_funcdecl_reg(nodes, &stack, i, diags, &annot);
+    }
+
     /* Process functions: inherit module scope. */
     for (i = 0; i < nodes.size; i++) {
         const anode *n = &nodes.data[i];

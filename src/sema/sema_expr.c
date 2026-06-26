@@ -154,6 +154,53 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
         annot->data[idx].type = sty;
         return sty;
     }
+    case ANODE_CALL: {
+        const char *fname = nodes.data[n->child].sv;
+        sym_entry *found = sym_set_find_bykey(cur_scope(stack), fname);
+        int nargs = 0;
+        int arg_idx;
+        int pi;
+
+        if (!found || found->kind != SYM_FUNC) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "undeclared function '%s'", fname);
+            return NULL;
+        }
+
+        found->func.is_used = true;
+
+        /* count args */
+        arg_idx = nodes.data[n->child].next;
+        while (arg_idx >= 0) {
+            nargs++;
+            arg_idx = nodes.data[arg_idx].next;
+        }
+
+        if (nargs != found->func.param_types.size) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "function '%s' expects %d arguments, got %d",
+                     fname, found->func.param_types.size, nargs);
+            return NULL;
+        }
+
+        /* check each arg type */
+        arg_idx = nodes.data[n->child].next;
+        for (pi = 0; pi < nargs && arg_idx >= 0; pi++) {
+            const Type *expected = found->func.param_types.data[pi];
+            const Type *actual = sema_expr(nodes, stack, arg_idx, diags, annot);
+            if (actual && !assignable_to(expected, actual))
+                diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                         "type mismatch: argument %d of '%s' expects '%s',"
+                         " got '%s'",
+                         pi + 1, fname,
+                         expected->name ? expected->name : "?",
+                         actual->name ? actual->name : "?");
+            arg_idx = nodes.data[arg_idx].next;
+        }
+
+        annot->data[idx].type = found->func.ret_type;
+        return found->func.ret_type;
+    }
     case ANODE_FIELDACCESS: {
         const char *fn = n->sv;
         int obj_idx = n->child;

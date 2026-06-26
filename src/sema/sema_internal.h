@@ -61,6 +61,8 @@ void sema_constdecl(node_vector nodes, sym_set_vector *stack, int idx,
                      diag_vector *diags, sema_vector *annot);
 void sema_structdef_reg(node_vector nodes, sym_set_vector *stack, int cd_idx,
                          diag_vector *diags, sema_vector *annot);
+void sema_funcdecl_reg(node_vector nodes, sym_set_vector *stack, int fn_idx,
+                        diag_vector *diags, sema_vector *annot);
 
 const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
                       diag_vector *diags, sema_vector *annot);

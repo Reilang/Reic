@@ -100,6 +100,49 @@ void sema_structdef_reg(node_vector nodes, sym_set_vector *stack, int cd_idx,
     }
 }
 
+void sema_funcdecl_reg(node_vector nodes, sym_set_vector *stack, int fn_idx,
+                        diag_vector *diags, sema_vector *annot)
+{
+    const anode *fn = &nodes.data[fn_idx];
+    const anode *name_n = &nodes.data[fn->child];
+    const char *fname = name_n->sv;
+    sym_set *scope = cur_scope(stack);
+    const Type *ret_type = TYPE_UNIT;
+    type_ptr_vector param_types;
+    int cur;
+
+    (void)diags;
+    (void)annot;
+
+    type_ptr_vec_new(&param_types, 4);
+
+    /* Collect parameter types from VARDECL children. */
+    cur = name_n->next;
+    while (cur >= 0 && nodes.data[cur].kind == ANODE_VARDECL) {
+        const anode *vd = &nodes.data[cur];
+        int var_idx = vd->child;
+        int type_idx = nodes.data[var_idx].next;
+        if (type_idx >= 0 && nodes.data[type_idx].kind == ANODE_IDENT_TYPE)
+            type_ptr_vec_push(&param_types, (Type *)nodes.data[type_idx].ty);
+        cur = vd->next;
+    }
+
+    /* The ANODE_IDENT_TYPE after params holds the return type. */
+    if (cur >= 0 && nodes.data[cur].kind == ANODE_IDENT_TYPE)
+        ret_type = nodes.data[cur].ty;
+
+    {
+        sym_entry entry;
+        entry.key = fname;
+        entry.kind = SYM_FUNC;
+        entry.decl_depth = cur_depth(stack);
+        entry.func.is_used = false;
+        entry.func.ret_type = ret_type;
+        entry.func.param_types = param_types;
+        sym_set_insert(scope, entry);
+    }
+}
+
 void sema_vardecl(node_vector nodes, sym_set_vector *stack, int idx,
                    diag_vector *diags, sema_vector *annot)
 {
