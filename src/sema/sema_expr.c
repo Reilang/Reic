@@ -154,6 +154,56 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
         annot->data[idx].type = sty;
         return sty;
     }
+    case ANODE_ARRAYLIT: {
+        const Type *elem_ty = NULL;
+        int count = 0;
+        int cur = n->child;
+        bool mismatch = false;
+
+        while (cur >= 0) {
+            const Type *et = sema_expr(nodes, stack, cur, diags, annot);
+            if (et) {
+                if (!elem_ty) {
+                    elem_ty = et;
+                } else if (elem_ty != et) {
+                    const Type *common = common_type(elem_ty, et);
+                    if (!common) {
+                        diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                                 "type mismatch: array element '%s' "
+                                 "is incompatible with '%s'",
+                                 elem_ty->name ? elem_ty->name : "?",
+                                 et->name ? et->name : "?");
+                        mismatch = true;
+                    } else {
+                        elem_ty = common;
+                    }
+                }
+            }
+            count++;
+            cur = nodes.data[cur].next;
+        }
+
+        if (count == 0) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "cannot infer type of empty array literal");
+            return NULL;
+        }
+
+        if (mismatch)
+            return NULL;
+
+        if (!elem_ty) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "cannot infer element type of array literal");
+            return NULL;
+        }
+
+        {
+            Type *arr_ty = type_array_new(elem_ty, count);
+            annot->data[idx].type = arr_ty;
+            return arr_ty;
+        }
+    }
     case ANODE_CALL: {
         const char *fname = nodes.data[n->child].sv;
         sym_entry *found = sym_set_find_bykey(cur_scope(stack), fname);
