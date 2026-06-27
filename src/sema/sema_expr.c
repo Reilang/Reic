@@ -280,6 +280,33 @@ const Type *sema_expr(node_vector nodes, sym_set_vector *stack, int idx,
                  ot->name ? ot->name : "?", fn);
         return NULL;
     }
+    case ANODE_INDEX: {
+        int arr_idx = n->child;
+        int idx_idx = (arr_idx >= 0) ? nodes.data[arr_idx].next : -1;
+        const Type *arr_ty = sema_expr(nodes, stack, arr_idx, diags, annot);
+
+        if (!arr_ty) return NULL;
+        if (arr_ty->kind != TYPEK_ARRAY) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "cannot index into non-array type '%s'",
+                     arr_ty->name ? arr_ty->name : "?");
+            return NULL;
+        }
+
+        if (idx_idx >= 0) {
+            const Type *idx_ty = sema_expr(nodes, stack, idx_idx, diags, annot);
+            if (idx_ty && !type_is_integer(idx_ty))
+                diag_fmt(diags, LEVEL_WARN, 0, 0,
+                         "array index should be integer, got '%s'",
+                         idx_ty->name ? idx_ty->name : "?");
+        }
+
+        {
+            const Type *elem_ty = arr_ty->elem_type;
+            annot->data[idx].type = elem_ty;
+            return elem_ty;
+        }
+    }
     default:
         return NULL;
     }
@@ -325,6 +352,33 @@ void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
         diag_fmt(diags, LEVEL_ERROR, 0, 0,
                  "struct '%s' has no field '%s'",
                  ot->name ? ot->name : "?", fn);
+        return;
+    }
+
+    if (target->kind == ANODE_INDEX) {
+        int arr_idx = target->child;
+        const Type *arr_ty = sema_expr(nodes, stack, arr_idx, diags, annot);
+
+        if (!arr_ty || arr_ty->kind != TYPEK_ARRAY) {
+            diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                     "cannot index-assign to non-array type");
+            return;
+        }
+
+        {
+            const Type *elem_ty = arr_ty->elem_type;
+            annot->data[target_idx].type = elem_ty;
+
+            rhs_type = sema_expr(nodes, stack,
+                                 nodes.data[target_idx].next,
+                                 diags, annot);
+            if (rhs_type && !assignable_to(elem_ty, rhs_type))
+                diag_fmt(diags, LEVEL_ERROR, 0, 0,
+                         "type mismatch: cannot assign '%s' "
+                         "to array element of type '%s'",
+                         rhs_type->name ? rhs_type->name : "?",
+                         elem_ty->name ? elem_ty->name : "?");
+        }
         return;
     }
 

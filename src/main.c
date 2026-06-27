@@ -50,6 +50,8 @@ int main(void)
         "    var v := Vec2 { x: 1, y: 2 }\n"
         "    v.x := add(v.y, 1)\n"
         "    var xs := [1, 2, 3]\n"
+        "    var first := xs[0]\n"
+        "    xs[1] := 99\n"
         "    return v.x\n"
         "}\n";
 
