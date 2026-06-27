@@ -219,7 +219,12 @@ void emit_stmt(CgCtx *ctx, int idx)
         const char *rhs = emit_expr(ctx, rhs_idx);
         snprintf(rhs_buf, sizeof(rhs_buf), "%s", rhs);
 
-        if (target->kind == HIR_FIELDACCESS) {
+        if (target->kind == HIR_INDEX) {
+            const char *ptr = emit_ptr(ctx, target_idx);
+            const char *ety = llvm_ty(target->type);
+            strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",
+                        ety, rhs_buf, ety, ptr);
+        } else if (target->kind == HIR_FIELDACCESS) {
             const char *ptr = emit_ptr(ctx, target_idx);
             const char *fty = llvm_ty(target->type);
             strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",

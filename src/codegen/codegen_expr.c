@@ -67,6 +67,40 @@ const char *emit_ptr(CgCtx *ctx, int idx)
             return gep;
         }
     }
+    case HIR_INDEX: {
+        int arr_idx = n->child;
+        int idx_idx = (arr_idx >= 0) ? ctx->hir->data[arr_idx].next : -1;
+        const Type *arr_ty = ctx->hir->data[arr_idx].type;
+        char arr_ty_buf[64];
+        char arr_ptr_buf[64];
+
+        snprintf(arr_ty_buf, sizeof(arr_ty_buf), "%s", llvm_ty(arr_ty));
+
+        const char *base_ptr = emit_ptr(ctx, arr_idx);
+        if (!base_ptr) {
+            const char *arr_val = emit_expr(ctx, arr_idx);
+            const char *tmp = cg_new_reg(ctx);
+            char tmp_buf[64];
+            snprintf(tmp_buf, sizeof(tmp_buf), "%s", tmp);
+            strbuf_addf(&ctx->sb, "  %s = alloca %s\n", tmp_buf, arr_ty_buf);
+            strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",
+                        arr_ty_buf, arr_val, arr_ty_buf, tmp_buf);
+            base_ptr = tmp;
+        }
+        snprintf(arr_ptr_buf, sizeof(arr_ptr_buf), "%s", base_ptr);
+
+        {
+            char idx_buf[64];
+            const char *idx_val = emit_expr(ctx, idx_idx);
+            snprintf(idx_buf, sizeof(idx_buf), "%s", idx_val);
+
+            const char *gep = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb,
+                        "  %s = getelementptr %s, %s* %s, i32 0, i32 %s\n",
+                        gep, arr_ty_buf, arr_ty_buf, arr_ptr_buf, idx_buf);
+            return gep;
+        }
+    }
     default:
         return NULL;
     }
@@ -229,6 +263,65 @@ const char *emit_expr(CgCtx *ctx, int idx)
             const char *reg = cg_new_reg(ctx);
             strbuf_addf(&ctx->sb, "  %s = load %s, %s* %s\n",
                         reg, sty_buf, sty_buf, tmp_buf);
+            return reg;
+        }
+    }
+    case HIR_ARRAYLIT: {
+        char sty_buf[64], tmp_buf[64];
+        const char *sty = llvm_ty(n->type);
+        const char *tmp_ptr = cg_new_reg(ctx);
+        int cur, fi;
+
+        snprintf(sty_buf, sizeof(sty_buf), "%s", sty);
+        snprintf(tmp_buf, sizeof(tmp_buf), "%s", tmp_ptr);
+        strbuf_addf(&ctx->sb, "  %s = alloca %s\n", tmp_buf, sty_buf);
+
+        cur = n->child;
+        fi = 0;
+        while (cur >= 0) {
+            char fval_buf[64], fty_buf[64];
+            const char *fval = emit_expr(ctx, cur);
+            const char *fty = llvm_ty(ctx->hir->data[cur].type);
+            snprintf(fval_buf, sizeof(fval_buf), "%s", fval);
+            snprintf(fty_buf, sizeof(fty_buf), "%s", fty);
+
+            {
+                const char *gep = cg_new_reg(ctx);
+                strbuf_addf(&ctx->sb,
+                            "  %s = getelementptr %s, %s* %s, i32 0, i32 %d\n",
+                            gep, sty_buf, sty_buf, tmp_buf, fi);
+                strbuf_addf(&ctx->sb, "  store %s %s, %s* %s\n",
+                            fty_buf, fval_buf, fty_buf, gep);
+            }
+
+            cur = ctx->hir->data[cur].next;
+            fi++;
+        }
+
+        {
+            const char *reg = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb, "  %s = load %s, %s* %s\n",
+                        reg, sty_buf, sty_buf, tmp_buf);
+            return reg;
+        }
+    }
+    case HIR_INDEX: {
+        char ptr_buf[64], fty_buf[64];
+        const char *ptr = emit_ptr(ctx, idx);
+        const char *fty = llvm_ty(n->type);
+
+        if (!ptr) {
+            char *b = buf_alloc();
+            snprintf(b, 64, "undef");
+            return b;
+        }
+        snprintf(ptr_buf, sizeof(ptr_buf), "%s", ptr);
+        snprintf(fty_buf, sizeof(fty_buf), "%s", fty);
+
+        {
+            const char *reg = cg_new_reg(ctx);
+            strbuf_addf(&ctx->sb, "  %s = load %s, %s* %s\n",
+                        reg, fty_buf, fty_buf, ptr_buf);
             return reg;
         }
     }
