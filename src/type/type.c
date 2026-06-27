@@ -295,11 +295,16 @@ Type *type_session_end(void)
 Type *type_array_new(const Type *elem_type, int len)
 {
     Type *t = arena_alloc(sizeof(Type));
+    char namebuf[128];
 
     t->kind = TYPEK_ARRAY;
     t->is_lin = elem_type ? elem_type->is_lin : false;
     t->id = type_next_id++;
-    t->name = NULL;
+
+    snprintf(namebuf, sizeof(namebuf), "[%d]%s",
+             len, elem_type ? (elem_type->name ? elem_type->name : "?") : "?");
+    t->name = arena_strdup(namebuf);
+
     t->elem_type = (Type *)elem_type;
     t->len = len;
 

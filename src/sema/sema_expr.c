@@ -357,6 +357,7 @@ void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
 
     if (target->kind == ANODE_INDEX) {
         int arr_idx = target->child;
+        int idx_idx = (arr_idx >= 0) ? nodes.data[arr_idx].next : -1;
         const Type *arr_ty = sema_expr(nodes, stack, arr_idx, diags, annot);
 
         if (!arr_ty || arr_ty->kind != TYPEK_ARRAY) {
@@ -364,6 +365,9 @@ void sema_assign(node_vector nodes, sym_set_vector *stack, int idx,
                      "cannot index-assign to non-array type");
             return;
         }
+
+        if (idx_idx >= 0)
+            sema_expr(nodes, stack, idx_idx, diags, annot);
 
         {
             const Type *elem_ty = arr_ty->elem_type;

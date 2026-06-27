@@ -54,6 +54,8 @@ static const char *kind_name(hkind kind)
     case HIR_STRUCTLIT:    return "STRUCTLIT";
     case HIR_FIELDACCESS:  return "FIELDACCESS";
     case HIR_CALL:         return "CALL";
+    case HIR_ARRAYLIT:     return "ARRAYLIT";
+    case HIR_INDEX:        return "INDEX";
     default:               return "???";
     }
 }

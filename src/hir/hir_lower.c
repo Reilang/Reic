@@ -389,9 +389,43 @@ static int lower_node(node_vector nodes, const sema_vector *annot,
         hn.child = first_arg;
         break;
     }
-    case ANODE_INDEX:
-        hn.kind = HIR_NONE;
+    case ANODE_ARRAYLIT: {
+        hn.kind = HIR_ARRAYLIT;
+        hn.type = annot->data[idx].type;
+
+        int first_elem = -1;
+        int prev_elem = -1;
+        int cur = n->child;
+        while (cur >= 0) {
+            int elem_hir = lower_expr(nodes, annot, hir, ast2hir, cur, NULL);
+            if (first_elem < 0)
+                first_elem = elem_hir;
+            else
+                hir->data[prev_elem].next = elem_hir;
+            prev_elem = elem_hir;
+            cur = nodes.data[cur].next;
+        }
+        hn.child = first_elem;
         break;
+    }
+    case ANODE_INDEX: {
+        hn.kind = HIR_INDEX;
+        hn.type = annot->data[idx].type;
+
+        int arr_idx = n->child;
+        if (arr_idx >= 0) {
+            int arr_hir = lower_expr(nodes, annot, hir, ast2hir, arr_idx, NULL);
+            hn.child = arr_hir;
+
+            int idx_idx = nodes.data[arr_idx].next;
+            if (idx_idx >= 0) {
+                int idx_hir = lower_expr(nodes, annot, hir, ast2hir,
+                                        idx_idx, NULL);
+                hir->data[arr_hir].next = idx_hir;
+            }
+        }
+        break;
+    }
     case ANODE_STRUCTLIT: {
         hn.kind = HIR_STRUCTLIT;
         hn.type = annot->data[idx].type;
