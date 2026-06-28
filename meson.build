@@ -3,7 +3,6 @@ project('reic', 'c',
   default_options: [
     'c_std=c11',
     'warning_level=3',
-    'buildtype=debugoptimized',
   ],
   meson_version: '>=1.1.0',
 )

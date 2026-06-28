@@ -9,7 +9,8 @@ design phase — everything is subject to change.
 ## Build & Test
 
 ```
-meson setup builddir
+meson setup builddir                        # debug (-O0 -g)
+meson setup builddir --buildtype=release    # release (-O3, no debug)
 ninja -C builddir
 ```
 
